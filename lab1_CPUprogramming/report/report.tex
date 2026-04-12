@@ -1,4 +1,4 @@
-\documentclass[a4paper]{article}
+﻿\documentclass[9pt,a4paper]{article}
 
 \input{style/ch_xelatex.tex}
 \input{style/scala.tex}
@@ -40,6 +40,8 @@ escapeinside=``
 
 % 设置字体大小和行间距为原来的 90%
 \renewcommand{\baselinestretch}{0.9}
+
+
 
 %-----------------------伪代码------------------
 \usepackage{algorithm}  
@@ -142,7 +144,7 @@ rulesepcolor= \color{ red!20!green!20!blue!20}
     \textsc{\LARGE \kaishu{专业\ :\ 计算机科学与技术}}\\[0.5cm]
     
     \vfill
-    {\Large \today}
+    {\Large 2026 年 3 月 30 日}
     \end{center}
 \end{titlepage}
 
@@ -155,7 +157,7 @@ rulesepcolor= \color{ red!20!green!20!blue!20}
 % 生成目录
 \clearpage
 \begingroup
-\renewcommand{\baselinestretch}{1.6}
+\renewcommand{\baselinestretch}{2.0}\normalsize
 \tableofcontents
 \endgroup
 \newpage
@@ -260,7 +262,7 @@ volatile double result = sum1 + sum2;
 \begin{table}[H]
 \centering
 \caption{n*n 矩阵与向量内积性能测试}
-\resizebox{0.5\textwidth}{!}{
+\resizebox{0.35\textwidth}{!}{
 \begin{tabular}{cccc}
 \toprule
 N & 朴素算法 (ms) & Cache 优化 (ms) & 加速比 \\
@@ -296,7 +298,7 @@ N & 朴素算法 (ms) & Cache 优化 (ms) & 加速比 \\
 \begin{table}[H]
 \centering
 \caption{n 个数求和性能测试}
-\resizebox{0.5\textwidth}{!}{
+\resizebox{0.35\textwidth}{!}{
 \begin{tabular}{cccc}
 \toprule
 N & 链式算法 (ms) & 两路算法 (ms) & 加速比 \\
@@ -416,6 +418,31 @@ sum\_two\_way (优化) & 139.989 & 682158000  & 2087597000 & 0.327 \\
         \item \textbf{内存访问}：保持行优先访问模式，结合分块技术进一步优化 Cache 局部性
     \end{itemize}
 \end{itemize}
+\textbf{代码实现：}
+\begin{lstlisting}[language=C++]
+const int BLOCK_SIZE = 128;
+void block_unroll(int N) {
+    for (int i = 0; i < N; i++) {
+        sum[i] = 0.0;
+    }
+    for (int j_block = 0; j_block < N; j_block += BLOCK_SIZE) {
+        int j_end = (j_block + BLOCK_SIZE < N) ? (j_block + BLOCK_SIZE) : N;
+        for (int j = j_block; j < j_end; j++) {
+            double vec_val = a[j];
+            int i = 0;
+            for (; i <= N - 4; i += 4) {
+                sum[i] += b[j][i] * vec_val;
+                sum[i+1] += b[j][i+1] * vec_val;
+                sum[i+2] += b[j][i+2] * vec_val;
+                sum[i+3] += b[j][i+3] * vec_val;
+            }
+            for (; i < N; i++) {
+                sum[i] += b[j][i] * vec_val;
+            }
+        }
+    }
+}
+\end{lstlisting}
 
 \textbf{进阶算法 2：SSE SIMD 向量化}
 \begin{itemize}
@@ -426,13 +453,39 @@ sum\_two\_way (优化) & 139.989 & 682158000  & 2087597000 & 0.327 \\
         \item \textbf{向量化计算}：通过 \texttt{\_mm\_set1\_pd}、\texttt{\_mm\_loadu\_pd}、\texttt{\_mm\_mul\_pd}、\texttt{\_mm\_add\_pd} 等指令实现并行计算
         \item \textbf{内存对齐}：使用 \texttt{\_mm\_loadu\_pd} 和 \texttt{\_mm\_storeu\_pd} 处理未对齐内存访问
     \end{itemize}
+
+
+
+\textbf{代码实现：}
+\begin{lstlisting}[language=C++]
+void simd_vectorize(int N) {
+    for (int i = 0; i < N; i++) {
+        sum[i] = 0.0;
+    }
+    for (int j = 0; j < N; j++) {
+        __m128d vec_val = _mm_set1_pd(a[j]);
+        int i = 0;
+        for (; i <= N - 2; i += 2) {
+            __m128d mat_val = _mm_loadu_pd(&b[j][i]);
+            __m128d prod = _mm_mul_pd(mat_val, vec_val);
+            __m128d sum_val = _mm_loadu_pd(&sum[i]);
+            sum_val = _mm_add_pd(sum_val, prod);
+            _mm_storeu_pd(&sum[i], sum_val);
+        }
+        for (; i < N; i++) {
+            sum[i] += b[j][i] * a[j];
+        }
+    }
+}
+\end{lstlisting}
+
 \end{itemize}
 
 \subsubsection{性能测试}
 \begin{table}[H]
 \centering
 \caption{n*n 矩阵与向量内积进阶算法性能测试}
-\resizebox{0.5\textwidth}{!}{
+\resizebox{0.35\textwidth}{!}{
 \begin{tabular}{ccc}
 \toprule
 N & 循环分块 (ms) & SIMD 向量化 (ms) \\
@@ -481,6 +534,11 @@ simd\_vectorize (SSE)   & 237.980 & 1069198000 & 4431608000  & 0.241 & 36400546 
     \item \textbf{循环分块 vs Cache 优化}：循环分块算法在所有 N 值下均优于基础 Cache 优化算法，加速比约为 1.2-1.5 倍
     \item \textbf{SIMD 向量化 vs 循环分块}：SIMD 向量化在 N 较小时性能略低于循环分块，但随着 N 增大，性能优势逐渐显现
 \end{itemize}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{matrix_comparison.png}
+\caption{n*n 矩阵与向量内积进阶算法性能对比图}
+\end{figure}
 
 \textbf{技术优势}：
 \begin{itemize}
@@ -506,6 +564,24 @@ simd\_vectorize (SSE)   & 237.980 & 1069198000 & 4431608000  & 0.241 & 36400546 
         \item \textbf{边界处理}：对剩余元素进行单独处理
     \end{itemize}
 \end{itemize}
+\textbf{代码实现：}
+\begin{lstlisting}[language=C++]
+void four_way_unroll(int N) {
+    double sum1 = 0.0, sum2 = 0.0, sum3 = 0.0, sum4 = 0.0;
+    int i = 0;
+    for (; i <= N - 4; i += 4) {
+        sum1 += a[i];
+        sum2 += a[i+1];
+        sum3 += a[i+2];
+        sum4 += a[i+3];
+    }
+    for (; i < N; i++) {
+        sum1 += a[i];
+    }
+    sum[0] = sum1 + sum2 + sum3 + sum4;
+}
+\end{lstlisting}
+
 
 \textbf{进阶算法 2：递归两两归并}
 \begin{itemize}
@@ -517,6 +593,29 @@ simd\_vectorize (SSE)   & 237.980 & 1069198000 & 4431608000  & 0.241 & 36400546 
         \item \textbf{递归终止}：当数组长度小于等于 1 时终止递归
     \end{itemize}
 \end{itemize}
+
+
+\textbf{代码实现：}
+\begin{lstlisting}[language=C++]
+void recursive_pairwise(int N) {
+    double* temp = new double[N];
+    for (int i = 0; i < N; i++) {
+        temp[i] = a[i];
+    }
+    auto merge_helper = [&](auto&& self, double* arr, int n) {
+        if (n <= 1) return;
+        int half = n / 2;
+        for (int i = 0; i < half; i++) {
+            arr[i] += arr[n - i - 1];
+        }
+        self(self, arr, half);
+    };
+    merge_helper(merge_helper, temp, N);
+    sum[0] = temp[0];
+    delete[] temp;
+}
+\end{lstlisting}
+
 
 \subsubsection{性能测试}
 \begin{table}[H]
@@ -571,6 +670,11 @@ recursive\_pairwise (递归)   & 6.999 & 24190000 & 96760000 & 0.250 \\
     \item \textbf{四路展开 vs 两路算法}：四路展开算法在所有 N 值下均优于两路算法，加速比约为 1.5-2 倍
     \item \textbf{递归两两归并 vs 两路算法}：递归两两归并算法性能略低于两路算法，主要由于递归开销
 \end{itemize}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.6\textwidth]{sum_comparison.png}
+\caption{n 个数求和进阶算法性能对比图}
+\end{figure}
 
 \textbf{技术优势}：
 \begin{itemize}
