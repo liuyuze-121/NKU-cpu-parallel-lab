@@ -1,0 +1,21 @@
+=== p=50 ===
+average recall: 0.973903
+average latency (us): 15045.7
+=== p=100 ===
+average recall: 0.9968
+average latency (us): 15256.6
+=== p=200 ===
+average recall: 0.9995
+average latency (us): 15136.8
+=== p=500 ===
+average recall: 0.99995
+average latency (us): 15864.6
+=== p=1000 ===
+average recall: 0.99995
+average latency (us): 16346
+=== p=2000 ===
+average recall: 0.99995
+average latency (us): 16935.7
+=== p=5000 ===
+average recall: 0.99995
+average latency (us): 20469.2

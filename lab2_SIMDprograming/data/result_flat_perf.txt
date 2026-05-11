@@ -1,0 +1,23 @@
+load data /anndata/DEEP100K.query.fbin
+dimension: 96  number:10000  size_per_element:4
+load data /anndata/DEEP100K.gt.query.100k.top100.bin
+dimension: 100  number:10000  size_per_element:4
+load data /anndata/DEEP100K.base.100k.fbin
+dimension: 96  number:100000  size_per_element:4
+average recall: 0.99995
+average latency (us): 6444.53
+
+ Performance counter stats for './main_flat_o3':
+
+         307008351      cache-misses:u                                              
+      157276046750      instructions:u            #    1.68  insn per cycle         
+       93888390145      cycles:u                                                    
+       42470602074      L1-dcache-loads:u                                           
+         307008351      L1-dcache-load-misses:u   #    0.72% of all L1-dcache accesses
+
+      18.778636090 seconds time elapsed
+
+      36.359709000 seconds user
+       0.082925000 seconds sys
+
+

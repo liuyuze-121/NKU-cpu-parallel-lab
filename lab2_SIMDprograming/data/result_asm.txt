@@ -1,0 +1,96 @@
+	.type	_ZL18inner_product_neonPKfS0_m, %function
+_ZL18inner_product_neonPKfS0_m:
+.LFB10440:
+	.cfi_startproc
+	cmp	x2, 7
+	bls	.L34
+	movi	v1.4s, 0
+	add	x6, x0, 16
+	add	x5, x1, 16
+	mov	x4, 8
+	mov	v0.16b, v1.16b
+	.p2align 3,,7
+.L24:
+	ldr	q4, [x5, -16]
+	mov	x3, x4
+	ldr	q5, [x6, -16]
+	add	x4, x4, 8
+	ldr	q2, [x5], 32
+	ldr	q3, [x6], 32
+	fmla	v0.4s, v5.4s, v4.4s
+	fmla	v1.4s, v3.4s, v2.4s
+	cmp	x2, x4
+	bcs	.L24
+	fadd	v0.4s, v0.4s, v1.4s
+	cmp	x2, x3
+	bls	.L35
+.L33:
+	sub	x4, x2, #1
+	sub	x8, x2, x3
+	sub	x4, x4, x3
+	cmp	x4, 2
+	bls	.L30
+--
+	.size	_ZL18inner_product_neonPKfS0_m, .-_ZL18inner_product_neonPKfS0_m
+	.section	.text._ZN9__gnu_cxx5__ops14_Iter_comp_valISt4lessISt4pairIfmEEEC2EONS0_15_Iter_comp_iterIS5_EE.constprop.0,"axG",@progbits,_ZSt13__adjust_heapIN9__gnu_cxx17__normal_iteratorIPSt4pairIfmESt6vectorIS3_SaIS3_EEEElS3_NS0_5__ops15_Iter_comp_iterISt4lessIS3_EEEEvT_T0_SF_T1_T2_,comdat
+	.align	2
+	.p2align 4,,11
+	.type	_ZN9__gnu_cxx5__ops14_Iter_comp_valISt4lessISt4pairIfmEEEC2EONS0_15_Iter_comp_iterIS5_EE.constprop.0, %function
+_ZN9__gnu_cxx5__ops14_Iter_comp_valISt4lessISt4pairIfmEEEC2EONS0_15_Iter_comp_iterIS5_EE.constprop.0:
+.LFB13529:
+	.cfi_startproc
+	ret
+	.cfi_endproc
+.LFE13529:
+	.size	_ZN9__gnu_cxx5__ops14_Iter_comp_valISt4lessISt4pairIfmEEEC2EONS0_15_Iter_comp_iterIS5_EE.constprop.0, .-_ZN9__gnu_cxx5__ops14_Iter_comp_valISt4lessISt4pairIfmEEEC2EONS0_15_Iter_comp_iterIS5_EE.constprop.0
+	.section	.text._ZNSt13__atomic_baseIlEppEi.constprop.0,"axG",@progbits,_ZNK7hnswlib15HierarchicalNSWIfE9searchKnnEPKvmPNS_17BaseFilterFunctorE,comdat
+	.align	2
+	.p2align 4,,11
+	.type	_ZNSt13__atomic_baseIlEppEi.constprop.0, %function
+_ZNSt13__atomic_baseIlEppEi.constprop.0:
+.LFB13528:
+	.cfi_startproc
+	mov	x1, x0
+.L38:
+	ldaxr	x0, [x1]
+	add	x2, x0, 1
+	stlxr	w3, x2, [x1]
+	cbnz	w3, .L38
+	ret
+	.cfi_endproc
+.LFE13528:
+	.size	_ZNSt13__atomic_baseIlEppEi.constprop.0, .-_ZNSt13__atomic_baseIlEppEi.constprop.0
+	.text
+	.align	2
+--
+	bl	_ZL18inner_product_neonPKfS0_m
+	fsub	s0, s8, s0
+	mov	x0, x21
+	str	s0, [sp, 80]
+	bl	_ZNKSt14priority_queueISt4pairIfjESt6vectorIS1_SaIS1_EESt4lessIS1_EE4sizeEv
+	cmp	x0, 9
+	bls	.L1219
+	mov	x0, x21
+	bl	_ZNKSt14priority_queueISt4pairIfjESt6vectorIS1_SaIS1_EESt4lessIS1_EE3topEv
+	ldr	s1, [x0]
+	ldr	s0, [sp, 80]
+	fcmpe	s1, s0
+	bgt	.L1212
+	add	x19, x19, 1
+	add	x20, x20, x25
+	cmp	x22, x19
+	bne	.L1209
+.L1218:
+	ldr	x25, [sp, 64]
+	.cfi_restore 25
+	ldr	d8, [sp, 72]
+	.cfi_restore 72
+.L1204:
+	mov	x0, x21
+	ldp	x19, x20, [sp, 16]
+	ldp	x21, x22, [sp, 32]
+	ldp	x23, x24, [sp, 48]
+	ldp	x29, x30, [sp], 96
+	.cfi_restore 30
+	.cfi_restore 29
+	.cfi_restore 23

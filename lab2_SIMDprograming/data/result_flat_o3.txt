@@ -1,0 +1,2 @@
+average recall: 0.99995
+average latency (us): 6812.81

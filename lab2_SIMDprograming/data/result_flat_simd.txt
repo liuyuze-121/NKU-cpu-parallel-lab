@@ -1,0 +1,3 @@
+average recall: 0.99995
+average latency (us): 7073.44
+FLAT_SPEEDUP=3.09
