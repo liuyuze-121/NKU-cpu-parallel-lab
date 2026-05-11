@@ -108,6 +108,7 @@ rulesepcolor= \color{ red!20!green!20!blue!20}
 \renewcommand{\today}{2026 年 5 月 10 日}
 
 \begin{titlepage}
+    \pagestyle{empty}
     \begin{center}
     \includegraphics[width=0.8\textwidth]{NKU.png}\\[1cm]
     \vspace{20mm}
@@ -130,11 +131,14 @@ rulesepcolor= \color{ red!20!green!20!blue!20}
 \renewcommand {\thefigure}{\thesection{}.\arabic{figure}}
 \renewcommand{\figurename}{图}
 \renewcommand{\contentsname}{目录}  
-\cfoot{\thepage\ of \pageref{LastPage}}
 
 \clearpage
+\pagestyle{empty}
 \tableofcontents
-\newpage
+\clearpage
+\pagestyle{fancy}
+\cfoot{\thepage\ of \pageref{LastPage}}
+\setcounter{page}{1}
 
 \section{问题描述}
 
@@ -1015,6 +1019,6 @@ average recall: 0.99995
 average latency (us): 5658.52
 \end{lstlisting}
 
-GitHub 仓库地址：\href{https://github.com/liuyuze-121/NKU-cpu-parallel-lab.git/lab2_SIMDprograming}{https://github.com/liuyuze-121/NKU-cpu-parallel-lab.git/lab2\_SIMDprograming}
+GitHub 仓库地址：\href{https://github.com/liuyuze-121/NKU-cpu-parallel-lab/tree/main/lab2_SIMDprograming}{https://github.com/liuyuze-121/NKU-cpu-parallel-lab/tree/main/lab2\_SIMDprograming}
 
 \end{document}

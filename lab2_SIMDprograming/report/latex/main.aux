@@ -1,0 +1,96 @@
+\relax 
+\providecommand\babel@aux[2]{}
+\@nameuse{bbl@beforestart}
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand*\HyPL@Entry[1]{}
+\providecommand*\new@tpo@label[2]{}
+\HyPL@Entry{0<</S/D>>}
+\babel@aux{UKenglish}{}
+\HyPL@Entry{1<</S/D>>}
+\HyPL@Entry{3<</S/D>>}
+\@writefile{toc}{\contentsline {section}{\numberline {1}问题描述}{1}{section.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {2}实验环境}{1}{section.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces 实验环境配置}}{1}{table.caption.2}\protected@file@percent }
+\providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
+\newlabel{table:env}{{1}{1}{实验环境配置}{table.caption.2}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}算法设计}{2}{section.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Flat-SIMD：NEON 加速暴力搜索}{2}{subsection.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}算法原理}{2}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.2}数据流图}{2}{subsubsection.3.1.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3{}.1}{\ignorespaces NEON 双累加器计算流程}}{2}{figure.caption.3}\protected@file@percent }
+\newlabel{fig:neon_flow}{{3{}.1}{2}{NEON 双累加器计算流程}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.3}核心伪代码}{3}{subsubsection.3.1.3}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}NEON内积计算}{3}{algorithm.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces NEON关键操作}}{3}{table.caption.4}\protected@file@percent }
+\newlabel{table:neon_ops}{{2}{3}{NEON关键操作}{table.caption.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.4}算法复杂度分析}{3}{subsubsection.3.1.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Flat-SIMD复杂度分析}}{4}{table.caption.5}\protected@file@percent }
+\newlabel{table:flat_complexity}{{3}{4}{Flat-SIMD复杂度分析}{table.caption.5}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}SQ-SIMD：标量量化 + 两阶段检索}{4}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}算法原理}{4}{subsubsection.3.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.2}两阶段检索流程}{4}{subsubsection.3.2.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3{}.2}{\ignorespaces SQ两阶段检索流程}}{5}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:sq_flow}{{3{}.2}{5}{SQ两阶段检索流程}{figure.caption.6}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.3}量化误差分析}{5}{subsubsection.3.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}PQ-SIMD：乘积量化 + ADC + 两阶段检索}{5}{subsection.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.1}算法原理}{5}{subsubsection.3.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.2}量化流程}{6}{subsubsection.3.3.2}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3{}.3}{\ignorespaces PQ量化流程}}{6}{figure.caption.7}\protected@file@percent }
+\newlabel{fig:pq_encode}{{3{}.3}{6}{PQ量化流程}{figure.caption.7}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.3.3}非对称距离计算（ADC）}{6}{subsubsection.3.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}实验结果与分析}{6}{section.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}Baseline}{6}{subsection.4.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Baseline性能}}{7}{table.caption.8}\protected@file@percent }
+\newlabel{table:baseline}{{4}{7}{Baseline性能}{table.caption.8}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.2}Flat-SIMD}{7}{subsection.4.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Flat-SIMD性能对比}}{7}{table.caption.9}\protected@file@percent }
+\newlabel{table:flat_results}{{5}{7}{Flat-SIMD性能对比}{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.3}SQ-SIMD：Latency-Recall Trade-off}{7}{subsection.4.3}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces SQ-SIMD性能结果}}{7}{table.caption.10}\protected@file@percent }
+\newlabel{table:sq_results}{{6}{7}{SQ-SIMD性能结果}{table.caption.10}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4{}.4}{\ignorespaces SQ-SIMD Recall-Latency权衡曲线}}{8}{figure.caption.11}\protected@file@percent }
+\newlabel{fig:sq_tradeoff}{{4{}.4}{8}{SQ-SIMD Recall-Latency权衡曲线}{figure.caption.11}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.4}PQ-SIMD}{8}{subsection.4.4}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {7}{\ignorespaces PQ-SIMD性能对比}}{8}{table.caption.12}\protected@file@percent }
+\newlabel{table:pq_results}{{7}{8}{PQ-SIMD性能对比}{table.caption.12}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.5}综合对比}{8}{subsection.4.5}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {8}{\ignorespaces 算法综合对比}}{9}{table.caption.13}\protected@file@percent }
+\newlabel{table:all_results}{{8}{9}{算法综合对比}{table.caption.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4{}.5}{\ignorespaces 各算法Latency对比}}{9}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:all_comparison}{{4{}.5}{9}{各算法Latency对比}{figure.caption.14}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Profiling 性能分析}{9}{section.5}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.1}Flat-SIMD 进阶分析}{9}{subsection.5.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.1}编译器自动向量化对比}{9}{subsubsection.5.1.1}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {9}{\ignorespaces 编译器优化对比}}{9}{table.caption.15}\protected@file@percent }
+\newlabel{table:compiler}{{9}{9}{编译器优化对比}{table.caption.15}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.2}perf 分析}{10}{subsubsection.5.1.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {10}{\ignorespaces perf性能数据对比}}{10}{table.caption.16}\protected@file@percent }
+\newlabel{table:perf}{{10}{10}{perf性能数据对比}{table.caption.16}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.1.3}汇编代码分析}{11}{subsubsection.5.1.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.2}SQ-SIMD 进阶分析}{11}{subsection.5.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.2.1}量化误差分析}{11}{subsubsection.5.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.2.2}两阶段检索策略分析}{12}{subsubsection.5.2.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {11}{\ignorespaces p值影响分析}}{12}{table.caption.17}\protected@file@percent }
+\newlabel{table:p_analysis}{{11}{12}{p值影响分析}{table.caption.17}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {5.3}PQ-SIMD 进阶分析}{12}{subsection.5.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.1}perf 分析}{12}{subsubsection.5.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {5.3.2}压缩比与精度权衡}{12}{subsubsection.5.3.2}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {12}{\ignorespaces 压缩比对比}}{12}{table.caption.18}\protected@file@percent }
+\newlabel{table:compression}{{12}{12}{压缩比对比}{table.caption.18}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}实验总结}{12}{section.6}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.1}Flat-SIMD}{13}{subsection.6.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.2}SQ-SIMD}{13}{subsection.6.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.3}PQ-SIMD}{13}{subsection.6.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {6.4}关键发现}{13}{subsection.6.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {A}AI 辅助编程记录}{14}{appendix.A}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {B}原始实验数据}{14}{appendix.B}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.1}Baseline}{14}{subsection.B.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.2}Flat-SIMD}{14}{subsection.B.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.3}SQ-SIMD}{14}{subsection.B.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.4}PQ-SIMD}{15}{subsection.B.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {B.5}编译器对比}{15}{subsection.B.5}\protected@file@percent }
+\newlabel{LastPage}{{}{15}{}{page.15}{}}
+\xdef\lastpage@lastpage{15}
+\xdef\lastpage@lastpageHy{15}
+\xdef \mintedoldcachechecksum{\detokenize{\minted@cachechecksum }}
+\gdef \@abspage@last{18}
