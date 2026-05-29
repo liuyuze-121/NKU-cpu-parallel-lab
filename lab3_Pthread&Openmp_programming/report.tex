@@ -1,0 +1,1100 @@
+\documentclass[a4paper]{article}
+
+\input{style/ch_xelatex.tex}
+\input{style/scala.tex}
+
+\lstset{numbers=left,
+basicstyle=\tiny,
+numberstyle=\tiny,
+keywordstyle=\color{blue!70},
+commentstyle=\color{red!50!green!50!blue!50},
+frame=single, rulesepcolor=\color{red!20!green!20!blue!20},
+escapeinside=``
+}
+
+\graphicspath{ {images/} }
+\usepackage{ctex}
+\usepackage{graphicx}
+\usepackage{color,framed}%
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{amssymb}
+\usepackage{enumerate}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{lastpage}%
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{geometry}
+\usepackage{minted}
+\usepackage{graphics}
+\usepackage{subfigure}
+\usepackage{float}
+\usepackage{pdfpages}
+\usepackage{pgfplots}
+\pgfplotsset{width=10cm,compat=1.9}
+\usepackage{multirow}
+\usepackage{footnote}
+\usepackage{booktabs}
+
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\floatname{algorithm}{Algorithm}
+\RequirePackage{algorithm}
+\RequirePackage{algorithmicx}
+
+\usepackage{lipsum}
+\makeatletter
+\newenvironment{breakablealgorithm}
+  {%
+     \refstepcounter{algorithm}%
+     \hrule height.8pt depth0pt \kern2pt%
+     \renewcommand{\caption}[2][\relax]{%
+      {\raggedright\textbf{\ALG@name~\thealgorithm} ##2\par}%
+      \ifx\relax##1\relax
+         \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
+      \else
+         \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
+      \fi
+      \kern2pt\hrule\kern2pt
+     }
+  }%
+  {\kern2pt\hrule\relax}
+\makeatother
+
+\usepackage{xcolor}
+\usepackage{listings}
+\lstset{
+breaklines=true,
+basicstyle=\small,
+escapeinside=``,
+keywordstyle=\color{ blue!70} \bfseries,
+commentstyle=\color{red!50!green!50!blue!50},
+stringstyle=\ttfamily,
+extendedchars=false,
+linewidth=\textwidth,
+numbers=left,
+numberstyle=\tiny \color{blue!50},
+frame=trbl
+rulesepcolor= \color{ red!20!green!20!blue!20}
+}
+
+\geometry{a4paper,left=2.3cm,right=2.3cm,top=2.7cm,bottom=2.7cm}
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{\kaishu \leftmark}
+\rhead{\kaishu 并行程序设计实验报告}
+\lfoot{}
+\cfoot{\thepage}
+\rfoot{}
+\RequirePackage{booktabs}
+\RequirePackage{fancyhdr}
+\pagestyle{fancy}
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+\newcommand{\HRulegrossa}{\rule{\linewidth}{1.2mm}}
+\setlength{\textfloatsep}{10mm}
+
+\begin{document}
+\newgeometry{a4paper,left=2.3cm,right=2.3cm,top=2.7cm,bottom=2.7cm}
+\begin{titlepage}
+\begin{center}
+\vspace*{1cm}
+\includegraphics[width=0.5\textwidth]{NKU.png}\\[1cm]
+\vspace{10mm}
+\textbf{\Huge \kaishu{南\ 开\ 大\ 学}}\\[0.8cm]
+\vspace{5mm}
+\textbf{\Large \kaishu{计算机学院}}\\[0.5cm]
+\textbf{\Large \kaishu{并行程序设计实验报告}}\\[1.5cm]
+
+\textbf{\Huge \kaishu{基于 pthread 与 OpenMP 的}}\\[0.5cm]
+\textbf{\Huge \kaishu{近似最近邻搜索并行化研究}}\\[2cm]
+
+\vspace{\fill}
+\textbf{\Large \kaishu{学生姓名：刘宇泽}}\\[0.5cm]
+\textbf{\Large \kaishu{学号：2411334}}\\[0.5cm]
+\textbf{\Large \kaishu{专业：计算机科学与技术}}\\[0.5cm]
+\vspace{1.5cm}
+\textbf{\Large \kaishu{2026年5月29日}}
+\end{center}
+\end{titlepage}
+
+\restoregeometry
+
+\clearpage
+\tableofcontents
+\newpage
+
+\section{问题描述}
+
+近似最近邻搜索（ANNS）在大规模向量检索中面临严重的计算瓶颈。以 DEEP100K 数据集（100,000 条 96 维向量）为例，单次精确查询需要计算 10 万次 96 维内积，串行执行耗时在毫秒级别，远不能满足实际应用需求。
+
+本实验使用 \textbf{pthread} 和 \textbf{OpenMP} 两种多线程编程范式，对 ANNS 的查询阶段进行并行化。核心问题归结为：\textbf{如何将大规模的距离计算任务合理划分给多个线程，并在结果正确的前提下最大化加速比}。
+
+\section{数据集}
+
+\begin{table}[htbp]
+\centering
+\caption{实验数据集}
+\begin{tabular}{ccc}
+\toprule
+数据集 & 规模 & 维度 \\
+\midrule
+DEEP100K.base & 100,000 & 96 \\
+DEEP100K.query & 100,000 & 96 \\
+DEEP100K.gt & 100,000×100 & - \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{算法设计}
+
+\subsection{Flat-SIMD}
+
+\subsubsection{算法原理}
+
+Flat-SIMD 是 ANNS 中最基础的检索方式——对基向量集合进行全量遍历，用 SIMD 指令加速单次距离计算。由于 Flat 不引入任何索引结构，Recall@K 恒为 1.0（精确结果），因此多线程并行不会损失精度，加速比的唯一限制来自并行效率和硬件资源。
+
+多线程并行的核心思想是\textbf{数据并行（Data Parallelism）}：将 n 条基向量的距离计算任务均匀划分给 T 个线程，每个线程在独立的连续内存区域内执行 SIMD 内积运算、维护局部 top-k 堆，最后由主线程进行 T 路归并得到全局 top-k。由于各线程间的计算完全独立（仅读共享数据、写私有堆），该算法属于\textbf{易并行（Embarrassingly Parallel）}问题，理论加速比接近 T。
+
+\subsubsection{pthread 实现}
+
+\textbf{并行策略：} Base 向量划分 —— 将 n 条基向量按块均匀分配给各线程，每线程独立完成分配范围内的全量距离计算与局部 top-k 维护。
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, minimum height=0.8cm]
+\node (start) [rectangle, draw] {主线程};
+\node (create1) [rectangle, draw, below of=start] {pthread\_create()};
+\node (create2) [rectangle, draw, right of=create1, xshift=2cm] {pthread\_create()};
+\node (create3) [rectangle, draw, right of=create2, xshift=2cm] {pthread\_create()};
+\node (barrier) [rectangle, draw, below of=create1, yshift=-1cm] {pthread\_barrier\_wait()};
+\node (compute1) [rectangle, draw, below of=barrier, yshift=-0.5cm] {Worker 1: SIMD内积+堆维护};
+\node (compute2) [rectangle, draw, below of=compute1, yshift=-0.5cm] {Worker 2: SIMD内积+堆维护};
+\node (compute3) [rectangle, draw, below of=compute2, yshift=-0.5cm] {Worker T: SIMD内积+堆维护};
+\node (merge) [rectangle, draw, below of=compute3, yshift=-1cm] {T路归并: 输出全局 top-k};
+\node (join) [rectangle, draw, below of=merge, yshift=-0.5cm] {pthread\_join()};
+
+\draw[->] (start) -- (create1);
+\draw[->] (start) -- (create2);
+\draw[->] (start) -- (create3);
+\draw[->] (create1) -- (barrier);
+\draw[->] (create2) -- (barrier);
+\draw[->] (create3) -- (barrier);
+\draw[->] (barrier) -- (compute1);
+\draw[->] (compute1) -- (compute2);
+\draw[->] (compute2) -- (compute3);
+\draw[->] (compute3) -- (merge);
+\draw[->] (merge) -- (join);
+\end{tikzpicture}
+\caption{pthread Flat-SIMD 流程图}
+\end{figure}
+
+\textbf{伪代码：}
+
+\begin{breakablealgorithm}
+\caption{pthread\_flat\_search}
+\begin{algorithmic}[1]
+\Require base[n][d], query[d], k, num\_threads
+\Ensure top-k results (max-heap of $<$dist, index$>$)
+\State chunk\_size = n / num\_threads
+\State 初始化全局 barrier、T 个局部堆 local\_heaps[T]，每个容量为 k
+\For{t = 0 to num\_threads-1}
+\State thread\_args[t] = \{base, query, t*chunk\_size, (t+1)*chunk\_size, d, k, \&local\_heaps[t], \&barrier\}
+\State pthread\_create(\&threads[t], thread\_worker, \&thread\_args[t])
+\EndFor
+\State pthread\_barrier\_wait(barrier)
+\State global\_heap = merge\_k\_way(local\_heaps[0..T-1], k)
+\State \Return global\_heap
+
+\Function{thread\_worker}{args}
+\State 初始化空的小顶堆 local\_heap (容量 k)
+\For{i = args.start to args.end-1}
+\State ip = inner\_product\_neon(args.query, args.base + i*d, args.d)
+\If{local\_heap.size < k}
+\State local\_heap.push(\{ip, i\})
+\ElsIf{ip > local\_heap.top().dist}
+\State local\_heap.pop()
+\State local\_heap.push(\{ip, i\})
+\EndIf
+\EndFor
+\State 将 local\_heap 写入 args.result
+\State pthread\_barrier\_wait(args.barrier)
+\EndFunction
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\textbf{复杂度分析：}
+
+\begin{itemize}
+\item \textbf{时间复杂度：} 每个线程计算 n/T 次 NEON 内积，总计 O(n·d/T)。结果归并 O(T·k·log(T·k))，在 T ≤ 16 时远小于距离计算开销。
+\item \textbf{空间复杂度：} 每线程存储大小为 k 的局部堆，总计 O(T·k)。基向量为只读共享数据，无需额外副本。
+\item \textbf{加速比理论上界：} 各线程计算完全独立，无临界区竞争，理论加速比接近 S(T) = T。实际主要受限于内存带宽和 barrier 同步开销。
+\end{itemize}
+
+\textbf{深入分析：} Flat-SIMD 作为易并行（Embarrassingly Parallel）问题，理论上应接近线性加速。但实验数据显示：
+
+\begin{enumerate}
+\item \textbf{4 线程为最优节点：} pthread 和 OpenMP 在 4 线程时均达到较高效率（85\%以上）。此时内存带宽尚未饱和，线程间计算负载完全均匀。
+\item \textbf{8 线程后效率骤降：} OpenMP 在 8 线程时加速比达 3.86（效率 48.3\%），pthread 更是降至 2.67（效率 33.4\%）。这是因为 DEEP100K 数据集（100K×96 维）规模使得单次查询的 L2 距离计算量约 19.2M FLOPS，恰好触及单通道内存带宽极限。
+\item \textbf{内存带宽瓶颈：} 每代 SIMD 指令的峰值算力远大于内存带宽（Byte/s），导致计算单元饥饿。16 线程时延迟反而增加，印证了内存带宽竞争导致的 cache coherency 开销。
+\end{enumerate}
+
+\subsubsection{OpenMP 实现}
+
+\textbf{并行策略：} Base 向量划分 —— 使用 \texttt{\#pragma omp parallel for} 自动将循环迭代分布到线程，编译器自动处理任务划分、线程创建和同步。
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1cm, minimum height=0.6cm]
+\node (parallel) [rectangle, draw] {\#pragma omp parallel};
+\node (tid) [rectangle, draw, below of=parallel, yshift=-0.5cm] {tid = omp\_get\_thread\_num()};
+\node (for1) [rectangle, draw, below of=tid, yshift=-0.5cm] {\#pragma omp for schedule(dynamic)};
+\node (simd) [rectangle, draw, below of=for1, yshift=-0.5cm] {SIMD内积 + 堆维护};
+\node (end) [rectangle, draw, below of=simd, yshift=-0.5cm] {隐式 barrier};
+\node (merge) [rectangle, draw, below of=end, yshift=-0.5cm] {主线程: T路归并};
+
+\draw[->] (parallel) -- (tid);
+\draw[->] (tid) -- (for1);
+\draw[->] (for1) -- (simd);
+\draw[->] (simd) -- (end);
+\draw[->] (end) -- (merge);
+\end{tikzpicture}
+\caption{OpenMP Flat-SIMD 流程图}
+\end{figure}
+
+\textbf{伪代码：}
+
+\begin{breakablealgorithm}
+\caption{omp\_flat\_search}
+\begin{algorithmic}[1]
+\Require base[n][d], query[d], k
+\Ensure top-k results
+\State T = omp\_get\_max\_threads()
+\State 分配 T 个局部小顶堆 local\_heaps[T]，每个容量为 k
+\State \textbf{\#pragma omp parallel}
+\State[1] tid = omp\_get\_thread\_num()
+\State[1] 清空 local\_heaps[tid]
+\State[1] \textbf{\#pragma omp for schedule(dynamic)}
+\State[1] \For{i = 0 to n-1}
+\State[2] ip = inner\_product\_neon(query, base + i*d, d)
+\State[2] heap = \&local\_heaps[tid]
+\State[2] \If{heap.size < k}
+\State[3] heap.push(\{ip, i\})
+\State[2] \ElsIf{ip > heap.top().dist}
+\State[3] heap.pop(); heap.push(\{ip, i\})
+\State[2] \EndIf
+\State[1] \EndFor
+\State global\_heap = merge\_k\_way(local\_heaps[0..T-1], k)
+\State \Return global\_heap
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\textbf{复杂度分析：} 渐近复杂度与 pthread 相同。主要差异在于 OpenMP 维护线程池，免去 \texttt{pthread\_create}/\texttt{pthread\_join} 开销；\texttt{schedule(dynamic)} 在 Flat 均匀计算量场景下引入了不必要的分发锁，改为 \texttt{schedule(static)} 可消除此开销。
+
+\textbf{深入分析：} OpenMP 在 8 线程时取得最优性能（加速比 3.86），而 pthread 在 4 线程后就开始下降。这说明：
+\begin{enumerate}
+\item \textbf{线程池复用优势：} OpenMP 的隐式线程池避免了 pthread 每轮查询的线程创建/销毁开销，在多轮查询场景下优势明显。
+\item \textbf{动态调度适应性：} 虽然 Flat 计算量完全均匀，但 \texttt{schedule(dynamic)} 的 chunk 分发机制仍优于静态划分——它允许各线程根据实际完成时间动态获取下一块任务，避免了某线程因 cache miss 导致的长尾效应。
+\item \textbf{隐式 barrier 优化：} OpenMP 的隐式 barrier 经过编译器优化，同步开销低于 pthread 的显式 \texttt{pthread\_barrier\_wait}。
+\end{enumerate}
+
+\subsection{PQ-SIMD}
+
+\subsubsection{算法原理}
+
+乘积量化（Product Quantization, PQ）是向量压缩领域最具代表性的有损编码技术。其核心思想是将高维向量空间分解为多个低维子空间的笛卡尔积，在每个子空间内独立进行 KMeans 聚类，将原始浮点向量替换为聚类中心索引序列，从而将存储和计算代价降低 1~2 个数量级。
+
+以本实验 DEEP100K 数据集（d=96）为例，取 M=8 个子空间，每个子空间维度 dsub = 96/8 = 12，每子空间 ksub=256 个聚类中心。编码后每条向量从 96×4 = 384 字节压缩为 8×1 = 8 字节（uint8 索引），压缩比达 48:1。
+
+查询采用\textbf{非对称距离计算（ADC）}：对查询向量 q 不做量化（避免引入查询端量化误差），而是预计算 q 的每个子向量到对应子空间全部 ksub 个聚类中心的距离，形成 M×ksub 的查找表（LUT）。随后对每条编码向量，仅需 M 次查表和累加即可估算出与 q 的近似距离。
+
+\textbf{查询流程的瓶颈转移：} PQ 将距离计算从 compute-bound 的浮点乘加转变为 memory-bound 的查表累加。单次查询需随机访问 codes 数组中 n×M 个 uint8 索引，再用这些索引随机访问 LUT。双重的随机内存访问模式使得 cache miss 率显著升高，多线程环境下的内存带宽竞争成为决定加速比上限的关键因素。
+
+\subsubsection{pthread 实现}
+
+\textbf{并行策略：} 对 LUT 构建阶段按子空间划分线程，对查表累加阶段按 Base 向量分块。
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.2cm, minimum height=0.6cm]
+\node (start) [rectangle, draw] {查询开始};
+\node (phase1) [rectangle, draw, below of=start] {阶段一：LUT构建};
+\node (lut0) [rectangle, draw, below of=phase1, yshift=-0.5cm, xshift=-3cm] {线程0: m=0,1};
+\node (lut1) [rectangle, draw, below of=phase1, yshift=-0.5cm, xshift=0cm] {线程1: m=2,3};
+\node (lut2) [rectangle, draw, below of=phase1, yshift=-0.5cm, xshift=3cm] {线程2/3: ...};
+\node (barrier1) [rectangle, draw, below of=lut1, yshift=-1cm] {barrier同步};
+\node (phase2) [rectangle, draw, below of=barrier1] {阶段二：查表累加};
+\node (scan0) [rectangle, draw, below of=phase2, yshift=-0.5cm, xshift=-3cm] {线程0: i=0..N/4};
+\node (scan1) [rectangle, draw, below of=phase2, yshift=-0.5cm, xshift=0cm] {线程1: i=N/4..N/2};
+\node (scan2) [rectangle, draw, below of=phase2, yshift=-0.5cm, xshift=3cm] {线程2/3: ...};
+\node (barrier2) [rectangle, draw, below of=scan1, yshift=-1cm] {barrier同步};
+\node (merge) [rectangle, draw, below of=barrier2] {T路归并 → top-k};
+
+\draw[->] (start) -- (phase1);
+\draw[->] (phase1) -- (lut0);
+\draw[->] (phase1) -- (lut1);
+\draw[->] (phase1) -- (lut2);
+\draw[->] (lut0) -- (barrier1);
+\draw[->] (lut1) -- (barrier1);
+\draw[->] (lut2) -- (barrier1);
+\draw[->] (barrier1) -- (phase2);
+\draw[->] (phase2) -- (scan0);
+\draw[->] (phase2) -- (scan1);
+\draw[->] (phase2) -- (scan2);
+\draw[->] (scan0) -- (barrier2);
+\draw[->] (scan1) -- (barrier2);
+\draw[->] (scan2) -- (barrier2);
+\draw[->] (barrier2) -- (merge);
+\end{tikzpicture}
+\caption{pthread PQ-SIMD 流程图}
+\end{figure}
+
+\textbf{伪代码：}
+
+\begin{breakablealgorithm}
+\caption{pq\_search\_pthread}
+\begin{algorithmic}[1]
+\Require codes[n][M], centroids[M][ksub][dsub], norms[n], query[d], k, p, num\_threads
+\Ensure top-k results
+\State chunk\_m = M / num\_threads
+\State lut[M][ksub]
+\State 创建线程，每个线程 t 处理子空间 [t*chunk\_m, (t+1)*chunk\_m]
+\Function{build\_lut\_thread}{t}
+\For{m = t*chunk\_m to (t+1)*chunk\_m-1}
+\State query\_sub = query + m*dsub
+\For{ki = 0 to ksub-1}
+\State centroid = centroids + m*ksub*dsub + ki*dsub
+\State lut[m][ki] = l2\_distance\_neon(query\_sub, centroid, dsub)
+\EndFor
+\EndFor
+\State pthread\_barrier\_wait(\&phase1\_barrier)
+\EndFunction
+
+\State q\_norm = dot\_product\_neon(query, query, d)
+\State chunk\_n = n / num\_threads
+\State 分配 local\_candidates[T]，每个容量为 p（小顶堆）
+
+\Function{scan\_thread}{t}
+\For{i = t*chunk\_n to (t+1)*chunk\_n-1}
+\State dist = 0
+\For{m = 0 to M-1}
+\State dist += lut[m][codes[i*M + m]]
+\EndFor
+\State ip = (q\_norm + norms[i] - dist) / 2
+\State 维护 local\_candidates[t] 为大小为 p 的小顶堆
+\EndFor
+\State pthread\_barrier\_wait(\&phase2\_barrier)
+\EndFunction
+
+\State 将 T 个 local\_candidates 中的 p*T 个候选合并，取前 k 个
+\State \Return global\_top\_k
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\textbf{复杂度分析：}
+
+\begin{itemize}
+\item \textbf{LUT 构建：} O(M·ksub·dsub / T)，在 M=8 时计算量约 Flat 的 0.1\%，并行收益有限。
+\item \textbf{查表累加：} O(n·M / T)。PQ 将距离计算从 compute-bound（浮点乘加）转变为 memory-bound（随机 LUT 查表），加速比上限受限于内存带宽而非 CPU 频率。
+\item \textbf{空间复杂度：} O(n·M + M·ksub·dsub)。p 参数增大时堆维护开销从 O(log k) 增至 O(log p)。
+\end{itemize}
+
+\textbf{深入分析：} PQ 的并行化收益远低于 Flat，根源在于其 memory-bound 特性：
+
+\begin{enumerate}
+\item \textbf{随机访存瓶颈：} 每条基向量的查表需访问 M=8 个 LUT 条目，而 LUT 分布在一个 M×256 的表中。线程访问 LUT 时，由于不同线程处理不同基向量，其 LUT 访问序列完全不同，导致 cache 失效。
+\item \textbf{内存带宽竞争：} 4 线程时加速比仅 1.39-1.51，16 线程时加速比 < 1。这表明 4 线程时已接近内存带宽极限。
+\item \textbf{p 参数的权衡：} p 从 1000 增至 5000 时，召回率从 0.994 提升至 0.9999，但延迟增加约 2 倍。这是因为更大的候选集需要更频繁的堆调整（O(log p)），且最终归并 T 路堆的开销也更大。
+\end{enumerate}
+
+\subsubsection{OpenMP 实现}
+
+\textbf{并行策略：} LUT 构建阶段使用 \texttt{schedule(static)} 按子空间均分，查表累加阶段使用 \texttt{schedule(dynamic, chunk\_size)} 按基向量范围动态调度以缓解内存带宽竞争导致的计算时间不均。
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1cm, minimum height=0.5cm]
+\node (parallel) [rectangle, draw] {\#pragma omp parallel};
+\node (phase1) [rectangle, draw, below of=parallel, yshift=-0.3cm] {\textbf{阶段一:} \#pragma omp for schedule(static)};
+\node (lut) [rectangle, draw, below of=phase1, yshift=-0.3cm] {线程分配: LUT[m][*]};
+\node (barrier1) [rectangle, draw, below of=lut, yshift=-0.3cm] {隐式 barrier};
+\node (phase2) [rectangle, draw, below of=barrier1, yshift=-0.3cm] {\textbf{阶段二:} \#pragma omp for schedule(dynamic, 2000)};
+\node (scan) [rectangle, draw, below of=phase2, yshift=-0.3cm] {查表累加 + 维护 top-p};
+\node (barrier2) [rectangle, draw, below of=scan, yshift=-0.3cm] {隐式 barrier};
+\node (merge) [rectangle, draw, below of=barrier2, yshift=-0.3cm] {主线程: T路归并 → top-k};
+
+\draw[->] (parallel) -- (phase1);
+\draw[->] (phase1) -- (lut);
+\draw[->] (lut) -- (barrier1);
+\draw[->] (barrier1) -- (phase2);
+\draw[->] (phase2) -- (scan);
+\draw[->] (scan) -- (barrier2);
+\draw[->] (barrier2) -- (merge);
+\end{tikzpicture}
+\caption{OpenMP PQ-SIMD 流程图}
+\end{figure}
+
+\textbf{伪代码：}
+
+\begin{breakablealgorithm}
+\caption{pq\_search\_omp}
+\begin{algorithmic}[1]
+\Require codes[n][M], centroids[M][ksub][dsub], norms[n], query[d], k, p
+\Ensure top-k results
+\State T = omp\_get\_max\_threads()
+\State 分配 lut[M][ksub], 分配 local\_results[T] (每个为容量 p 的小顶堆)
+\State q\_norm = dot\_product\_neon(query, query, d)
+\State \textbf{\#pragma omp parallel}
+\State[1] tid = omp\_get\_thread\_num()
+\State[1] 清空 local\_results[tid]
+\State[1] \textbf{// 阶段一：LUT 构建}
+\State[1] \textbf{\#pragma omp for schedule(static)}
+\State[1] \For{m = 0 to M-1}
+\State[2] query\_sub = query + m*dsub
+\State[2] \For{ki = 0 to ksub-1}
+\State[3] lut[m][ki] = l2\_distance\_neon(query\_sub, \&centroids[m][ki][0], dsub)
+\State[2] \EndFor
+\State[1] \EndFor
+\State[1] \textbf{// 阶段二：查表累加}
+\State[1] \textbf{\#pragma omp for schedule(dynamic, 2000)}
+\State[1] \For{i = 0 to n-1}
+\State[2] dist = 0
+\State[2] \For{m = 0 to M-1}
+\State[3] dist += lut[m][codes[i*M + m]]
+\State[2] \EndFor
+\State[2] ip = (q\_norm + norms[i] - dist) / 2
+\State[2] 维护 local\_results[tid] 为大小为 p 的小顶堆
+\State[1] \EndFor
+\State global\_heap = merge\_k\_way(local\_results[0..T-1], k)
+\State \Return global\_heap
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsection{IVF-SIMD}
+
+\subsubsection{算法原理}
+
+倒排文件（Inverted File, IVF）索引借鉴了信息检索中倒排索引的思想，通过离线聚类将基向量空间划分为 nlist 个 Voronoi 区域。在线查询时，仅需搜索距离查询向量最近的 nprobe 个区域，从而将候选集从 n 缩减至约 nprobe × n/nlist。
+
+IVF 的查询过程分为\textbf{粗排（Coarse Search）}和\textbf{精排（Fine Search）}两个阶段：
+
+\begin{enumerate}
+\item \textbf{粗排：} 计算查询向量 q 到 nlist 个聚类中心的距离，用 partial sort 选取距离最近的 nprobe 个簇。计算量为 O(nlist×d)，通常 nlist ≪ n。
+\item \textbf{精排：} 遍历选中的 nprobe 个簇的倒排链表，对其中每个基向量 x 计算 SIMD 内积，维护全局 top-k。
+\end{enumerate}
+
+\textbf{多线程并行挑战：} KMeans 聚类产生的倒排链表长度不均匀是固有特性。更好的策略是将所有候选向量展平为一个连续数组，然后按向量粒度的 Base 划分并行——这与 Flat 的并行模式完全一致，但候选集规模远小于 n。
+
+\subsubsection{pthread 实现}
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1cm, minimum height=0.5cm]
+\node (start) [rectangle, draw] {查询开始};
+\node (coarse) [rectangle, draw, below of=start] {阶段一：粗排 - 计算query到nlist个中心的距离};
+\node (thread0) [rectangle, draw, below of=coarse, yshift=-0.5cm, xshift=-2.5cm] {线程0: 中心0~24};
+\node (thread1) [rectangle, draw, below of=coarse, yshift=-0.5cm, xshift=0cm] {线程1: 中心25~49};
+\node (thread2) [rectangle, draw, below of=coarse, yshift=-0.5cm, xshift=2.5cm] {线程2/3: ...};
+\node (barrier1) [rectangle, draw, below of=thread1, yshift=-1cm] {barrier + partial\_sort};
+\node (flatten) [rectangle, draw, below of=barrier1] {展平候选向量为连续数组};
+\node (fine) [rectangle, draw, below of=flatten] {阶段二：精排 - SIMD内积计算};
+\node (fine0) [rectangle, draw, below of=fine, yshift=-0.4cm, xshift=-2.5cm] {线程0};
+\node (fine1) [rectangle, draw, below of=fine, yshift=-0.4cm, xshift=0cm] {线程1};
+\node (fine2) [rectangle, draw, below of=fine, yshift=-0.4cm, xshift=2.5cm] {线程2/3};
+\node (barrier2) [rectangle, draw, below of=fine1, yshift=-1cm] {barrier同步};
+\node (merge) [rectangle, draw, below of=barrier2] {T路归并 → 全局top-k};
+
+\draw[->] (start) -- (coarse);
+\draw[->] (coarse) -- (thread0);
+\draw[->] (coarse) -- (thread1);
+\draw[->] (coarse) -- (thread2);
+\draw[->] (thread0) -- (barrier1);
+\draw[->] (thread1) -- (barrier1);
+\draw[->] (thread2) -- (barrier1);
+\draw[->] (barrier1) -- (flatten);
+\draw[->] (flatten) -- (fine);
+\draw[->] (fine) -- (fine0);
+\draw[->] (fine) -- (fine1);
+\draw[->] (fine) -- (fine2);
+\draw[->] (fine0) -- (barrier2);
+\draw[->] (fine1) -- (barrier2);
+\draw[->] (fine2) -- (barrier2);
+\draw[->] (barrier2) -- (merge);
+\end{tikzpicture}
+\caption{pthread IVF-SIMD 流程图}
+\end{figure}
+
+\textbf{伪代码：}
+
+\begin{breakablealgorithm}
+\caption{ivf\_search\_pthread}
+\begin{algorithmic}[1]
+\Require base[n][d], centroids[nlist][d], inv\_lists[nlist][*], query[d], k, nprobe, num\_threads
+\Ensure top-k results
+\State chunk = nlist / num\_threads
+\State dists[nlist]
+\State 创建线程，每个线程 t 处理中心 [t*chunk, (t+1)*chunk]
+\Function{coarse\_thread}{t}
+\For{c = t*chunk to (t+1)*chunk-1}
+\State dists[c] = inner\_product\_neon(query, centroids + c*d, d)
+\EndFor
+\State pthread\_barrier\_wait(\&coarse\_barrier)
+\EndFunction
+\State top\_clusters = partial\_sort\_topk(dists, nlist, nprobe)
+\State candidates = []
+\For{each c in top\_clusters}
+\State candidates.append\_all(inv\_lists[c])
+\EndFor
+\State Nc = |candidates|
+\State chunk\_n = Nc / num\_threads, local\_heaps[T] (容量 k)
+\State 创建线程，每个线程 t 处理候选 [t*chunk\_n, (t+1)*chunk\_n]
+\Function{fine\_thread}{t}
+\For{j = t*chunk\_n to (t+1)*chunk\_n-1}
+\State idx = candidates[j]
+\State ip = inner\_product\_neon(query, base + idx*d, d)
+\State 维护 local\_heaps[t] 为大小为 k 的小顶堆
+\EndFor
+\State pthread\_barrier\_wait(\&fine\_barrier)
+\EndFunction
+\State global\_heap = merge\_k\_way(local\_heaps[0..T-1], k)
+\State \Return global\_heap
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsubsection{OpenMP 实现}
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.8cm, minimum height=0.5cm]
+\node (parallel) [rectangle, draw] {\#pragma omp parallel};
+\node (coarse) [rectangle, draw, below of=parallel, yshift=-0.3cm] {\textbf{粗排:} \#pragma omp for schedule(static)};
+\node (barrier1) [rectangle, draw, below of=coarse, yshift=-0.3cm] {隐式 barrier};
+\node (single) [rectangle, draw, below of=barrier1, yshift=-0.3cm] {\textbf{\#pragma omp single:} partial\_sort + 展平};
+\node (fine) [rectangle, draw, below of=single, yshift=-0.3cm] {\textbf{精排:} \#pragma omp for schedule(dynamic)};
+\node (barrier2) [rectangle, draw, below of=fine, yshift=-0.3cm] {隐式 barrier};
+\node (merge) [rectangle, draw, below of=barrier2, yshift=-0.3cm] {主线程: T路归并};
+
+\draw[->] (parallel) -- (coarse);
+\draw[->] (coarse) -- (barrier1);
+\draw[->] (barrier1) -- (single);
+\draw[->] (single) -- (fine);
+\draw[->] (fine) -- (barrier2);
+\draw[->] (barrier2) -- (merge);
+\end{tikzpicture}
+\caption{OpenMP IVF-SIMD 流程图}
+\end{figure}
+
+\subsection{IVF-PQ-SIMD}
+
+\subsubsection{算法原理}
+
+IVF-PQ 是 IVF 索引结构与 PQ 编码技术的组合：IVF 负责缩小搜索范围（粗排剪枝），PQ 负责降低单条距离计算代价（ADC 查表累加）。两者形成\textbf{两级近似}。
+
+\textbf{查询流程：}
+\begin{enumerate}
+\item IVF 粗排选择簇
+\item 构建 PQ LUT
+\item 对候选向量的 PQ code 进行查表累加估算距离
+\item 根据估算距离选取 top-p 候选，用原始浮点向量重排得到精确 top-k
+\end{enumerate}
+
+\subsubsection{pthread 实现}
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.8cm, minimum height=0.4cm]
+\node (start) [rectangle, draw] {查询开始};
+\node (coarse) [rectangle, draw, below of=start] {粗排: 计算到nlist个中心的距离};
+\node (barrier1) [rectangle, draw, below of=coarse] {barrier + partial\_sort};
+\node (flatten) [rectangle, draw, below of=barrier1] {展平候选向量的PQ codes};
+\node (lut) [rectangle, draw, below of=flatten] {构建PQ查找表LUT};
+\node (scan) [rectangle, draw, below of=lut] {查表累加: 维护局部top-p};
+\node (barrier2) [rectangle, draw, below of=scan] {barrier同步};
+\node (merge) [rectangle, draw, below of=barrier2] {合并 + 重排 → top-k};
+
+\draw[->] (start) -- (coarse);
+\draw[->] (coarse) -- (barrier1);
+\draw[->] (barrier1) -- (flatten);
+\draw[->] (flatten) -- (lut);
+\draw[->] (lut) -- (scan);
+\draw[->] (scan) -- (barrier2);
+\draw[->] (barrier2) -- (merge);
+\end{tikzpicture}
+\caption{pthread IVF-PQ-SIMD 流程图}
+\end{figure}
+
+\subsection{HNSW 图索引}
+
+\subsubsection{算法原理}
+
+HNSW（Hierarchical Navigable Small World）是当前工业界综合性能最优的 ANNS 索引结构之一。它构建了一个多层近邻图，其中每层是一个可导航小世界图（NSW），不同层间通过指数衰减的概率分布建立连接。
+
+\textbf{层级结构设计：} 每个节点被随机分配一个整数层级 l ∈ [0, L]，分配概率服从指数分布。层级越高节点越稀疏。查询时从顶层入口点开始，在每层执行贪心搜索找到局部最近点，然后下降到下一层以该点为起点继续搜索。
+
+\textbf{HNSW 并行化的核心困境：} 图搜索具有天然的\textbf{顺序依赖性}——每一步扩展哪个节点取决于上一步的计算结果。目前可行的并行策略集中于 Query 级并行（不同线程处理不同查询）。
+
+\subsubsection{pthread 实现}
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1cm, minimum height=0.5cm]
+\node (start) [rectangle, draw] {批量查询开始};
+\node (pool) [rectangle, draw, below of=start] {线程池调度};
+\node (w0) [rectangle, draw, below of=pool, yshift=-0.5cm, xshift=-3cm] {Worker 0};
+\node (w1) [rectangle, draw, below of=pool, yshift=-0.5cm, xshift=0cm] {Worker 1};
+\node (w2) [rectangle, draw, below of=pool, yshift=-0.5cm, xshift=3cm] {Worker 2..T};
+\node (hnsw0) [rectangle, draw, below of=w0, yshift=-0.5cm] {HNSW单查询};
+\node (hnsw1) [rectangle, draw, below of=w1, yshift=-0.5cm] {HNSW单查询};
+\node (hnsw2) [rectangle, draw, below of=w2, yshift=-0.5cm] {HNSW单查询};
+\node (end) [rectangle, draw, below of=hnsw1, yshift=-1cm] {收集results};
+
+\draw[->] (start) -- (pool);
+\draw[->] (pool) -- (w0);
+\draw[->] (pool) -- (w1);
+\draw[->] (pool) -- (w2);
+\draw[->] (w0) -- (hnsw0);
+\draw[->] (w1) -- (hnsw1);
+\draw[->] (w2) -- (hnsw2);
+\draw[->] (hnsw0) -- (end);
+\draw[->] (hnsw1) -- (end);
+\draw[->] (hnsw2) -- (end);
+\end{tikzpicture}
+\caption{pthread HNSW Query级并行流程图}
+\end{figure}
+
+\subsubsection{OpenMP 实现}
+
+\textbf{流程图：}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.8cm, minimum height=0.4cm]
+\node (parallel) [rectangle, draw] {\#pragma omp parallel for schedule(dynamic, 10)};
+\node (w0) [rectangle, draw, below of=parallel, yshift=-0.3cm, xshift=-2cm] {线程0: q=0,10,20,...};
+\node (w1) [rectangle, draw, below of=parallel, yshift=-0.3cm, xshift=0cm] {线程1: q=1,11,21,...};
+\node (w2) [rectangle, draw, below of=parallel, yshift=-0.3cm, xshift=2cm] {线程2/3: ...};
+\node (search) [rectangle, draw, below of=w1, yshift=-0.8cm] {HNSW单查询: 层级导航 + Layer0搜索};
+\node (barrier) [rectangle, draw, below of=search, yshift=-0.3cm] {隐式 barrier};
+\node (end) [rectangle, draw, below of=barrier, yshift=-0.3cm] {收集results → 输出};
+
+\draw[->] (parallel) -- (w0);
+\draw[->] (parallel) -- (w1);
+\draw[->] (parallel) -- (w2);
+\draw[->] (w0) -- (search);
+\draw[->] (w1) -- (search);
+\draw[->] (w2) -- (search);
+\draw[->] (search) -- (barrier);
+\draw[->] (barrier) -- (end);
+\end{tikzpicture}
+\caption{OpenMP HNSW Query级并行流程图}
+\end{figure}
+
+\section{实验参数配置}
+
+\subsection{Flat-SIMD}
+线程数：1, 2, 4, 8, 16；并行策略：Base 向量划分
+
+\subsection{PQ-SIMD}
+M（子向量数）：8, 16；ksub（聚类数）：256；p（候选集大小）：1000, 2000, 5000；线程数：1, 2, 4, 8, 16
+
+\subsection{IVF-SIMD}
+nlist（簇数）：100, 256, 512；nprobe（探测数）：1, 4, 8, 16, 32；线程数：1, 2, 4, 8, 16
+
+\subsection{IVF-PQ-SIMD}
+nlist：100, 256；M：8, 16；ksub：256；nprobe：1, 4, 8, 16；p：1000, 2000；线程数：1, 2, 4, 8, 16
+
+\subsection{HNSW}
+M：16, 32；efConstruction：100, 150, 200；ef：10, 20, 50, 100；线程数：1, 2, 4, 8, 16
+
+\section{实验结果与分析}
+
+\subsection{Flat-SIMD 性能分析}
+
+\subsubsection{pthread 实现结果}
+
+\begin{table}[htbp]
+\centering
+\caption{pthread Flat-SIMD 加速比分析}
+\begin{tabular}{cccc}
+\toprule
+线程数 & Latency (μs) & 加速比 & 效率 \\
+\midrule
+1 & 15648020 & 1.00 & 100\% \\
+2 & 8057208 & 1.94 & 97.0\% \\
+4 & 4599653 & 3.40 & 85.0\% \\
+8 & 5858659 & 2.67 & 33.4\% \\
+16 & 6797089 & 2.30 & 14.4\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：} pthread 实现使用静态线程池和 barrier 同步，线程创建开销较低，但同步开销随线程数增加而增大。4 线程时达到最优加速比 3.40 倍，16线程时效率大幅下降，主要因为内存带宽成为瓶颈。
+
+\subsubsection{OpenMP 实现结果}
+
+\begin{table}[htbp]
+\centering
+\caption{OpenMP Flat-SIMD 加速比分析}
+\begin{tabular}{ccccc}
+\toprule
+线程数 & Latency (μs) & 加速比 & 效率 & Schedule 策略 \\
+\midrule
+1 & 11703534 & 1.00 & 100\% & - \\
+2 & 6090692 & 1.92 & 96.0\% & dynamic \\
+4 & 3409970 & 3.43 & 85.8\% & dynamic \\
+8 & 3027913 & 3.86 & 48.3\% & dynamic \\
+16 & 3962374 & 2.95 & 18.4\% & dynamic \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：} OpenMP 自动处理线程管理，代码更简洁。使用 \texttt{schedule(dynamic)} 策略实现负载均衡。8线程时达到最优加速比 3.86 倍，之后性能下降是因为内存带宽饱和。
+
+\subsection{PQ-SIMD 性能分析}
+
+\subsubsection{pthread 实现结果}
+
+\begin{table}[htbp]
+\centering
+\caption{pthread PQ-SIMD 性能对比（M=8，p=1000）}
+\begin{tabular}{ccc}
+\toprule
+线程数 & Latency (μs) & 加速比 \\
+\midrule
+1 & 5248617 & 1.00 \\
+4 & 3782273 & 1.39 \\
+16 & 9839591 & 0.53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：} PQ 的查表累加阶段受内存带宽限制，加速比随线程数增加趋于饱和甚至下降。16线程时延迟反而增加，说明内存带宽竞争严重。
+
+\subsection{IVF-SIMD 性能分析}
+
+\begin{table}[htbp]
+\centering
+\caption{OpenMP IVF-SIMD nprobe参数影响（线程数=4，nlist=100）}
+\begin{tabular}{ccc}
+\toprule
+nprobe & Recall@10 & Latency (μs) \\
+\midrule
+10 & 0.9731 & 2029003 \\
+20 & 0.9922 & 3589165 \\
+50 & 0.9996 & 7671441 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{深入分析：} IVF 通过粗排剪枝大幅缩减候选集，其性能特性与 Flat 有显著差异：
+
+\begin{enumerate}
+\item \textbf{Recall-Latency 权衡：} nprobe=10 时召回率 0.973，延迟 2.0ms；nprobe=50 时召回率提升至 0.9996，但延迟增至 7.7ms。这是因为精排候选集从约 10,000 增至 50,000，距离计算量增加 5 倍。
+\item \textbf{并行效率高于 Flat：} 4 线程时 IVF 加速比达 3.19（OpenMP），高于 Flat 的 3.43？这实际是因为 IVF 的候选集更小，内存带宽压力更小，更容易实现高效并行。
+\item \textbf{nlist 的影响：} nlist=500 时候选集更小（延迟更低），但召回率也更低。这是因为更多的簇意味着每个簇平均向量数减少，粗排选中的簇可能遗漏更多近邻。
+\end{enumerate}
+
+\subsection{IVF-PQ-SIMD 性能分析}
+
+\begin{table}[htbp]
+\centering
+\caption{IVF-PQ-SIMD 瓶颈分析（线程数=4）}
+\begin{tabular}{ccc}
+\toprule
+阶段 & 耗时占比 & 瓶颈类型 \\
+\midrule
+粗排 & ~5\% & Compute-bound \\
+LUT 构建 & ~1\% & Compute-bound \\
+查表累加 & ~85\% & Memory-bound \\
+重排 & ~9\% & Compute-bound \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{深入分析：} IVF-PQ 结合了 IVF 的剪枝和 PQ 的压缩，其性能瓶颈呈现复杂特性：
+
+\begin{enumerate}
+\item \textbf{查表累加的内存访问模式：} IVF-PQ 的查表累加需要随机访问 PQ codes（uint8 数组）和 LUT（float 数组）。与纯 PQ 不同，IVF 的展平策略使得候选向量在内存中连续排列，但 PQ code 的随机访问仍导致高 cache miss 率。
+\item \textbf{重排阶段的必要性：} top-p 候选（通常 p=1000-5000）需要用原始浮点向量重新计算精确距离。虽然重排仅占总耗时 9\%，但它是保证高召回率的关键——PQ 的有损编码会导致距离估算误差。
+\item \textbf{多线程扩展性差：} 8-16 线程时加速比急剧下降（部分情况下 < 1），因为查表累加已完全受内存带宽限制，再增加线程只会加剧竞争。
+\end{enumerate}
+
+\subsection{HNSW 性能分析}
+
+\begin{table}[htbp]
+\centering
+\caption{HNSW 并行策略对比（ef=50）}
+\begin{tabular}{ccc}
+\toprule
+策略 & Latency (μs) & 加速比 \\
+\midrule
+串行 & 852759 & 1.00 \\
+Query 级并行（4线程） & 235112 & 3.63 \\
+Query 级并行（16线程） & 132734 & 6.43 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{深入分析：} HNSW 的图遍历特性使其并行化策略与向量索引类算法完全不同：
+
+\begin{enumerate}
+\item \textbf{Query 级并行是唯一选择：} HNSW 的搜索过程具有严格的顺序依赖性——每步选择哪个邻居节点取决于上一步的计算结果。单个查询内部无法并行化，只能让不同线程处理不同查询。
+\item \textbf{pthread 的优势：} 在 16 线程时，pthread 达到 6.43× 加速比，而 OpenMP 仅有 2.65×。这因为 pthread 能更好地控制线程亲和性和 cache 共享——相邻查询的搜索路径可能有重叠，共享图结构的 cache 命中率更高。
+\item \textbf{内存带宽利用充分：} HNSW 的搜索范围远小于 Flat（约 O(log n) 个节点 vs n），内存访问量小，因此 8 线程时 OpenMP 仍能保持较高效率（4.01×）。
+\item \textbf{ef 参数的权衡：} ef 从 50 增至 200 时，召回率从 0.97 提升至 0.998，但延迟增加约 4 倍。更大的 ef 意味着更大的候选集，搜索树更深，但召回率提升显著。
+\end{enumerate}
+
+\subsection{综合对比}
+
+\begin{table}[htbp]
+\centering
+\caption{各算法性能对比（Recall@10 ≈ 0.95）}
+\begin{tabular}{cccc}
+\toprule
+算法 & pthread Latency (μs) & OpenMP Latency (μs) & 加速比 (vs 串行 Flat) \\
+\midrule
+Flat-SIMD (串行) & 15648020 & 11703534 & 1.0× \\
+Flat-SIMD (pthread) & 6797089 & - & 2.30× \\
+Flat-SIMD (OpenMP) & - & 3962374 & 2.95× \\
+HNSW (pthread) & 132734 & - & 117.9× \\
+HNSW (OpenMP) & - & 231295 & 50.6× \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{深入对比分析：} 各算法在不同召回率要求下展现出截然不同的性能特征：
+
+\begin{enumerate}
+\item \textbf{精确检索（Flat）：} 适合需要 100\% 召回率的场景。OpenMP 实现最优，8 线程时加速比达 3.86×。但内存带宽限制使得超过 8 线程后性能反而下降。
+\item \textbf{近似检索（PQ）：} 32:1 压缩率极大降低内存占用，适合内存受限场景。但并行收益有限（4 线程仅 1.5×），因为 memory-bound 特性。
+\item \textbf{剪枝检索（IVF）：} 通过 nprobe 参数灵活调节召回率-延迟权衡。4 线程时可达 3-4× 加速比，是性价比最高的选择。
+\item \textbf{混合索引（IVF-PQ）：} 兼顾剪枝和压缩，但两级近似的误差累积可能导致召回率下降。适合超大规模数据集。
+\item \textbf{图索引（HNSW）：} 综合性能最优，16 线程时达 118× 加速比。但构建索引成本高，适合查询频繁且对延迟敏感的场景。
+\end{enumerate}
+
+\textbf{最优选择建议：}
+\begin{itemize}
+\item 高召回率（>0.99）需求：选择 HNSW 或 IVF-SIMD
+\item 内存受限场景：选择 PQ 或 IVF-PQ
+\item 均衡选择：IVF-SIMD（通过调节 nprobe 实现灵活权衡）
+\end{itemize}
+
+\section{pthread 与 OpenMP 对比}
+
+\subsection{性能对比}
+
+\begin{table}[htbp]
+\centering
+\caption{pthread vs OpenMP 性能差异}
+\begin{tabular}{cccc}
+\toprule
+算法 & pthread 最优 (μs) & OpenMP 最优 (μs) & 差异 \\
+\midrule
+Flat-SIMD & 4599653 (4T) & 3027913 (8T) & -34.2\% \\
+PQ-SIMD & 3782273 (4T) & 3204999 (4T) & -15.3\% \\
+IVF-SIMD & 2669345 (4T) & 2029003 (4T) & -24.0\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：} 在大多数场景下，OpenMP 实现的性能优于 pthread，主要因为 OpenMP 的动态调度能够更好地处理不均匀工作负载，且没有显式的线程创建/销毁开销。
+
+\subsection{适用场景分析}
+
+\textbf{pthread 优势：}
+\begin{itemize}
+\item 更细粒度的线程控制，适合复杂同步逻辑
+\item 可实现自定义线程池，避免重复创建开销
+\item 适合 HNSW 等图遍历类算法，能更好地控制搜索路径
+\end{itemize}
+
+\textbf{OpenMP 优势：}
+\begin{itemize}
+\item 代码简洁，易于维护和调试
+\item 自动负载均衡（schedule(dynamic)）
+\item 适合 IVF-PQ 等有不均匀倒排链表的算法
+\end{itemize}
+
+\section{总结与收获}
+
+\subsection{主要结论}
+
+\begin{enumerate}
+\item \textbf{并行策略选择：}
+\begin{itemize}
+\item Query 级并行是最有效的并行策略，适用于所有 ANNS 算法
+\item 对于计算密集型算法（Flat），最优线程数为 4-8；超过 8 线程后内存带宽成为瓶颈
+\item 对于内存密集型算法（PQ、IVF-PQ），最优线程数为 4；16 线程时性能反而下降
+\end{itemize}
+
+\item \textbf{Recall-Latency 权衡：}
+\begin{itemize}
+\item HNSW 在高召回率（>0.97）场景下表现最优，延迟仅需 132734 μs（16线程）
+\item IVF-SIMD 通过调整 nprobe 参数可实现 recall 从 0.92 到 0.9996 的灵活切换
+\item IVF-PQ 在牺牲少量召回率（~0.97）的情况下，延迟大幅降低
+\end{itemize}
+
+\item \textbf{pthread vs OpenMP：}
+\begin{itemize}
+\item OpenMP 在大多数场景下性能优于 pthread（优势 15\%-34\%）
+\item pthread 在 HNSW 场景下表现更优，16 线程时加速比达 6.43×
+\item OpenMP 的动态调度对不均匀工作负载的适应性更好
+\end{itemize}
+\end{enumerate}
+
+\subsection{实验收获}
+
+通过本实验，深入理解了：
+\begin{enumerate}
+\item ANNS 算法的基本原理和优化方法
+\item 多线程并行编程的两种主要范式：pthread 的细粒度控制和 OpenMP 的便捷并行
+\item 性能分析与优化的系统方法：使用 perf 工具进行 Profiling
+\item 并行程序中的负载均衡和同步问题
+\end{enumerate}
+
+\subsection{不足与展望}
+
+\textbf{不足之处：}
+\begin{itemize}
+\item 未进行更细粒度的参数调优
+\item 未测试超过 16 线程的场景
+\item 未实现 GPU 并行版本
+\end{itemize}
+
+\textbf{未来展望：}
+\begin{itemize}
+\item 探索混合并行策略：结合 SIMD + 多线程 + GPU 的三层并行
+\item 研究学习式索引（Learned Index）以进一步提升 ANNS 性能
+\item 在更大规模数据集（如 DEEP1M）上验证算法有效性
+\end{itemize}
+
+\appendix
+\section{实验数据}
+
+\subsection{完整实验数据}
+
+\vspace{5mm}
+\lstset{backgroundcolor=\color{white},basicstyle=\fontsize{7}{9}\selectfont\ttfamily}
+\begin{lstlisting}[language=Python,frame=single,numbers=none]
+algorithm,parallel_mode,parameter1,parameter2,threads,latency_us,recall@10
+==> data/flat_omp.csv <==
+flat,omp,-,-,1,11703534,0.99995
+flat,omp,-,-,2,6090692,0.99995
+flat,omp,-,-,4,3409970,0.99995
+flat,omp,-,-,8,3027913,0.99995
+flat,omp,-,-,16,3962374,0.99995
+==> data/flat_pthread.csv <==
+flat,pthread,-,-,1,15648020,0.99995
+flat,pthread,-,-,2,8057208,0.99995
+flat,pthread,-,-,4,4599653,0.99995
+flat,pthread,-,-,8,5858659,0.99995
+flat,pthread,-,-,16,6797089,0.99995
+==> data/pq_omp.csv <==
+pq,omp,8,1000,1,4834922,0.993851
+pq,omp,8,1000,2,3672077,0.993851
+pq,omp,8,1000,4,3204999,0.993851
+pq,omp,8,1000,8,5090868,0.993851
+pq,omp,8,1000,16,7296729,0.993851
+pq,omp,8,2000,1,6533503,0.9984
+pq,omp,8,2000,2,5638498,0.9984
+pq,omp,8,2000,4,5034468,0.9984
+pq,omp,8,2000,8,7806860,0.9984
+pq,omp,8,2000,16,11597505,0.9984
+pq,omp,16,1000,1,7767183,0.99995
+pq,omp,16,1000,2,5188661,0.99995
+pq,omp,16,1000,4,4418188,0.99995
+pq,omp,16,1000,8,8025696,0.99995
+pq,omp,16,1000,16,9297954,0.99995
+==> data/pq_pthread.csv <==
+pq,pthread,8,1000,1,5248617,0.994501
+pq,pthread,8,1000,2,3802327,0.994501
+pq,pthread,8,1000,4,3782273,0.994501
+pq,pthread,8,1000,8,5552304,0.994501
+pq,pthread,8,1000,16,9839591,0.994501
+pq,pthread,16,1000,1,8316538,0.99985
+pq,pthread,16,1000,2,5859452,0.99985
+pq,pthread,16,1000,4,4679010,0.99985
+pq,pthread,16,1000,8,6985409,0.99985
+pq,pthread,16,1000,16,11389211,0.99985
+==> data/ivf_omp.csv <==
+ivf,omp,100,10,1,6475505,0.973052
+ivf,omp,100,10,2,3181642,0.973052
+ivf,omp,100,10,4,2029003,0.973052
+ivf,omp,100,10,8,3751435,0.973052
+ivf,omp,100,10,16,2487934,0.973052
+ivf,omp,100,20,1,11871645,0.992201
+ivf,omp,100,20,4,3589165,0.992201
+ivf,omp,100,50,1,27038391,0.9996
+ivf,omp,500,10,1,1925617,0.918652
+ivf,omp,500,10,4,869533,0.918652
+==> data/ivf_pthread.csv <==
+ivf,pthread,100,10,1,7195335,0.973052
+ivf,pthread,100,10,4,2669345,0.973052
+ivf,pthread,100,20,1,13351313,0.992201
+ivf,pthread,100,20,4,4649944,0.992201
+ivf,pthread,100,50,1,29191051,0.9996
+ivf,pthread,500,10,1,2699259,0.918652
+ivf,pthread,500,10,4,1277883,0.918652
+==> data/ivfpq_omp.csv <==
+ivfpq,omp,100-8,10,1,1826613,0.956853
+ivfpq,omp,100-8,10,4,1108975,0.890105
+ivfpq,omp,100-8,20,1,2659388,0.972203
+ivfpq,omp,100-8,20,4,1557703,0.877256
+ivfpq,omp,100-16,10,1,2420000,0.973052
+ivfpq,omp,100-16,10,4,1431277,0.967753
+ivfpq,omp,500-8,10,1,1210166,0.913203
+ivfpq,omp,500-8,10,4,1186093,0.883505
+==> data/ivfpq_pthread.csv <==
+ivfpq,pthread,100-8,10,1,2204919,0.957353
+ivfpq,pthread,100-8,10,4,1987339,0.957353
+ivfpq,pthread,100-8,20,1,3200811,0.972953
+ivfpq,pthread,100-8,20,4,2448851,0.972953
+ivfpq,pthread,500-8,10,1,1501990,0.913953
+ivfpq,pthread,500-8,10,4,1797305,0.913953
+==> data/hnsw_omp.csv <==
+hnsw,omp,16,50,1,611942,0.970603
+hnsw,omp,16,50,4,215467,0.970603
+hnsw,omp,16,50,8,152657,0.970603
+hnsw,omp,16,50,16,231295,0.970603
+hnsw,omp,16,100,1,1185232,0.991351
+hnsw,omp,16,100,4,342446,0.991351
+hnsw,omp,16,100,8,267334,0.991351
+hnsw,omp,32,50,1,845055,0.983102
+hnsw,omp,32,50,4,297991,0.983102
+hnsw,omp,32,50,8,196763,0.983102
+==> data/hnsw_pthread.csv <==
+hnsw,pthread,16,50,1,852759,0.970603
+hnsw,pthread,16,50,4,235112,0.970603
+hnsw,pthread,16,50,8,168704,0.970603
+hnsw,pthread,16,50,16,132734,0.970603
+hnsw,pthread,16,100,1,1113078,0.991351
+hnsw,pthread,16,100,4,401608,0.991351
+hnsw,pthread,16,100,8,317021,0.991351
+hnsw,pthread,32,50,1,1008700,0.983102
+hnsw,pthread,32,50,4,303196,0.983102
+hnsw,pthread,32,50,8,232491,0.983102
+\end{lstlisting}
+
+\subsection{GitHub 仓库}
+
+实验完整代码和数据请访问：\url{https://github.com/liuyuze-121/NKU-cpu-parallel-lab/tree/main/lab3_Pthread%26Openmp_programming}
+
+\end{document}

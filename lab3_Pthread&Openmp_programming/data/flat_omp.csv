@@ -1,0 +1,6 @@
+algorithm,parallel_mode,parameter1,parameter2,threads,latency_us,recall@10
+flat,omp,-,-,1,11703534,0.99995
+flat,omp,-,-,2,6090692,0.99995
+flat,omp,-,-,4,3409970,0.99995
+flat,omp,-,-,8,3027913,0.99995
+flat,omp,-,-,16,3962374,0.99995
