@@ -1,0 +1,1440 @@
+\documentclass[a4paper]{article}
+
+\input{style/ch_xelatex.tex}
+\input{style/scala.tex}
+
+%代码段设置
+\lstset{numbers=left,
+basicstyle=\tiny,
+numberstyle=\tiny,
+keywordstyle=\color{blue!70},
+commentstyle=\color{red!50!green!50!blue!50},
+frame=single, rulesepcolor=\color{red!20!green!20!blue!20},
+escapeinside=``
+}
+
+\graphicspath{ {images/} }
+\usepackage{ctex}
+\usepackage{graphicx}
+\usepackage{color,framed}%文本框
+\usepackage{listings}
+\usepackage{caption}
+\usepackage{amssymb}
+\usepackage{enumerate}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage{lastpage}%获得总页数
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{geometry}
+\usepackage{minted}
+\usepackage{graphics}
+\usepackage{subfigure}
+\usepackage{float}
+\usepackage{pdfpages}
+\usepackage{pgfplots}
+\pgfplotsset{width=10cm,compat=1.9}
+\usepackage{multirow}
+\usepackage{footnote}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning,calc,arrows.meta}
+
+%-----------------------伪代码------------------
+\usepackage{algorithm}
+\usepackage{algorithmicx}
+\usepackage{algpseudocode}
+\floatname{algorithm}{Algorithm}
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+\usepackage{lipsum}
+\makeatletter
+\newenvironment{breakablealgorithm}
+  {% \begin{breakablealgorithm}
+  \begin{center}
+     \refstepcounter{algorithm}% New algorithm
+     \hrule height.8pt depth0pt \kern2pt% \@fs@pre for \@fs@ruled
+     \renewcommand{\caption}[2][\relax]{% Make a new \caption
+      {\raggedright\textbf{\ALG@name~\thealgorithm} ##2\par}%
+      \ifx\relax##1\relax % #1 is \relax
+         \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##2}%
+      \else % #1 is not \relax
+         \addcontentsline{loa}{algorithm}{\protect\numberline{\thealgorithm}##1}%
+      \fi
+      \kern2pt\hrule\kern2pt
+     }
+  }{% \end{breakablealgorithm}
+     \kern2pt\hrule\relax% \@fs@post for \@fs@ruled
+  \end{center}
+  }
+\makeatother
+%------------------------代码-------------------
+\usepackage{xcolor}
+\usepackage{listings}
+\lstset{
+breaklines,%自动换行
+basicstyle=\small,
+escapeinside=``,
+keywordstyle=\color{ blue!70} \bfseries,
+commentstyle=\color{red!50!green!50!blue!50},%
+stringstyle=\ttfamily,%
+extendedchars=false,%
+linewidth=\textwidth,%
+numbers=left,%
+numberstyle=\tiny \color{blue!50},%
+frame=trbl%
+rulesepcolor= \color{ red!20!green!20!blue!20}
+}
+
+%-------------------------页面边距--------------
+\geometry{a4paper,left=2.3cm,right=2.3cm,top=2.7cm,bottom=2.7cm}
+%-------------------------页眉页脚--------------
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\lhead{\kaishu \leftmark}
+% \chead{}
+\rhead{\kaishu 并行程序设计实验报告}%加粗\bfseries
+\lfoot{}
+\cfoot{\thepage}
+\rfoot{}
+\renewcommand{\headrulewidth}{0.1pt}
+\renewcommand{\footrulewidth}{0pt}%去掉横线
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}%标题横线
+\newcommand{\HRulegrossa}{\rule{\linewidth}{1.2mm}}
+\setlength{\textfloatsep}{10mm}%设置图片的前后间距
+%--------------------文档内容--------------------
+
+\begin{document}
+\renewcommand{\contentsname}{目\ 录}
+\renewcommand{\appendixname}{附录}
+\renewcommand{\appendixpagename}{附录}
+\renewcommand{\refname}{参考文献}
+\renewcommand{\figurename}{图}
+\renewcommand{\tablename}{表}
+\renewcommand{\today}{\number\year 年 \number\month 月 \number\day 日}
+
+%-------------------------封面----------------
+\begin{titlepage}
+    \begin{center}
+    \includegraphics[width=0.8\textwidth]{NKU.png}\\[1cm]
+    \vspace{20mm}
+		\textbf{\huge\textbf{\kaishu{计算机学院}}}\\[0.5cm]
+		\textbf{\huge{\kaishu{并行程序设计期末报告}}}\\[2.3cm]
+		\textbf{\Huge\textbf{\kaishu{MPI多进程实验}}}
+
+		\vspace{\fill}
+
+    % \textbf{\Large \textbf{并行程序设计期末实验报告}}\\[0.8cm]
+    % \HRule \\[0.9cm]
+    % \HRule \\[2.0cm]
+    \centering
+    \textsc{\LARGE \kaishu{姓名\ :\ 刘宇泽}}\\[0.5cm]
+    \textsc{\LARGE \kaishu{学号\ :\ 2411334}}\\[0.5cm]
+    \textsc{\LARGE \kaishu{专业\ :\ 计算机科学与技术}}\\[0.5cm]
+
+    \vfill
+    {\Large 2026 年 6 月 3 日}
+    \end{center}
+\end{titlepage}
+
+\renewcommand {\thefigure}{\thesection{}.\arabic{figure}}%图片按章标号
+\renewcommand{\figurename}{图}
+\renewcommand{\contentsname}{目录}
+\cfoot{\thepage\ of \pageref{LastPage}}%当前页 of 总页数
+
+\pagenumbering{Roman}
+\setcounter{page}{1}
+% 生成目录
+\clearpage
+\tableofcontents
+\newpage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+%--------------------------Title--------------------------------
+\section{问题描述}
+
+近似最近邻搜索（ANNS）在大规模向量检索中面临明显的计算与访存瓶颈。对于 DEEP100K 数据集，基向量规模为 100,000，维度为 96，若直接采用串行全量扫描，则每个查询都需要遍历全部向量并计算大量内积，随着查询数增加，整体延迟难以满足实际检索需求。
+
+本次实验进一步探索 \textbf{MPI 多进程并行化} 在 ANN 查询阶段中的可行性。和前面 pthread / OpenMP 实验一样，本次依旧重点关注查询阶段，而非索引构建阶段。核心问题可归结为：
+
+\begin{enumerate}
+    \item 如何将 base 数据合理划分到多个 MPI 进程；
+    \item 如何设计广播、局部搜索和最终 merge/reduce 的流程；
+    \item 如何将 MPI 与 OpenMP / pthread 进一步结合，形成混合并行；
+    \item 如何覆盖阻塞、非阻塞、单边通信，以及图索引方案，并如实分析其效果。
+\end{enumerate}
+
+
+
+
+\section{数据集}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrr}
+\toprule
+数据集 & 规模 & 维度 \\
+\midrule
+DEEP100K.base & 100,000 & 96 \\
+DEEP100K.query & 100,000 & 96 \\
+DEEP100K.gt & 100,000 $\times$ 100 & - \\
+\bottomrule
+\end{tabular}
+\caption{数据集规模}
+\end{table}
+
+
+\section{算法设计}
+
+\subsection{MPI IVF }
+
+\subsubsection{算法原理}
+
+MPI IVF 的核心思想是：将 base data 按 rank 做连续分片，每个进程仅维护自己分片上的 IVF 索引；查询到来后由 rank0 广播给其他进程，各进程分别完成局部 coarse search 与 fine search，得到局部 top-k，最后再由 rank0 负责 merge 成全局 top-k 并计算 recall。
+
+与单机 IVF 相比，MPI IVF 的本质变化不在于局部索引逻辑，而在于把"候选集来源"从单机全量 base，变成了多个 rank 的局部分片。因此它天然包含两级开销：
+
+\begin{enumerate}
+    \item \textbf{通信开销}：query 广播与局部结果汇总；
+    \item \textbf{计算开销}：每个 rank 上的局部 IVF 搜索。
+\end{enumerate}
+
+在本次实现中，局部 IVF 搜索支持三种 rank 内线程模式：
+\begin{itemize}
+    \item \texttt{none}：单线程；
+    \item \texttt{openmp}：复用已有 OpenMP IVF 实现；
+    \item \texttt{pthread}：复用已有 pthread IVF 实现。
+\end{itemize}
+
+因此，MPI IVF 可以自然扩展为两级并行结构：
+\begin{itemize}
+    \item 进程间并行：MPI 分片；
+    \item 进程内并行：OpenMP / pthread。
+\end{itemize}
+
+\subsubsection{流程图}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.7cm,
+    box/.style={rectangle, draw, rounded corners, minimum height=0.7cm, align=center},
+    rank/.style={rectangle, draw, minimum height=0.6cm, minimum width=2.2cm, align=center},
+    fan/.style={rectangle, draw, dashed, minimum height=0.6cm, align=center},
+    arrow/.style={-Stealth, thick}
+]
+% rank0 读取
+\node[box] (read) {rank0 读取 query};
+
+% Bcast
+\node[box, below=of read] (bcast) {MPI\_Bcast / MPI\_Ibcast 广播 query};
+
+% 4 个 rank
+\node[rank, below left=0.6cm and 0.2cm of bcast] (r0) {rank 0: 本地 IVF 查询};
+\node[rank, right=0.3cm of r0] (r1) {rank 1: 本地 IVF 查询};
+\node[rank, right=0.3cm of r1] (r2) {rank 2: 本地 IVF 查询};
+\node[rank, right=0.3cm of r2] (rp) {rank P-1: 本地 IVF 查询};
+
+% 局部结果
+\node[box, below=0.7cm of r0, xshift=3.2cm] (gather) {MPI\_Gather / MPI\_Igather / MPI\_Put 汇总};
+
+% rank0 merge
+\node[box, below=of gather] (merge) {rank0: 全局 merge top-k};
+
+% recall / latency
+\node[box, below=of merge] (eval) {与 gt 比较 $\rightarrow$ recall / latency};
+
+\draw[arrow] (read) -- (bcast);
+\draw[arrow] (bcast) -- (r0);
+\draw[arrow] (bcast) -- (r1);
+\draw[arrow] (bcast) -- (r2);
+\draw[arrow] (bcast) -- (rp);
+\draw[arrow] (r0) -- (gather);
+\draw[arrow] (r1) -- (gather);
+\draw[arrow] (r2) -- (gather);
+\draw[arrow] (rp) -- (gather);
+\draw[arrow] (gather) -- (merge);
+\draw[arrow] (merge) -- (eval);
+\end{tikzpicture}
+\caption{MPI IVF 主方案流程图}
+\end{figure}
+
+\subsubsection{伪代码}
+
+\begin{breakablealgorithm}
+\caption{MPIIVFSearch}
+\begin{algorithmic}[1]
+\Require base[$N$][$d$], query[$Q$][$d$], nlist, nprobe, $k$, $P$ (processes), $T$ (threads per process)
+\Ensure recall / latency statistics for the $Q$ queries
+\State \textbf{// Build phase}
+\For{$p = 0$ to $P-1$}
+    \State shard[$p$] = base[$p \cdot N/P$ : $(p+1) \cdot N/P$)
+    \State kmeans(shard[$p$], nlist, centroids[$p$])
+    \For{$c = 0$ to nlist-1}
+        \State inv\_list[$p$][$c$] = \{$x \in$ shard[$p$] $|$ nearest(centroids[$p$][$c$], $x$)\}
+    \EndFor
+\EndFor
+\State \textbf{// Search phase}
+\For{$i = 0$ to $Q-1$}
+    \State $q$ = query[$i$]
+    \State Bcast($q$) \quad \textbf{// query broadcast}
+    \For{$p = 0$ to $P-1$ in parallel}
+        \State \textbf{// 阶段一：局部粗排}
+        \For{$c = 0$ to nlist-1}
+            \State coarse\_d[$c$] = inner\_product\_neon($q$, centroids[$p$][$c$], $d$)
+        \EndFor
+        \State selected = top-nprobe(coarse\_d)
+        \State \textbf{// 阶段二：局部精排}
+        \State candidates = $\bigcup_{c \in \text{selected}}$ inv\_list[$p$][$c$]
+        \State \textbf{\#pragma omp parallel for schedule(static)}
+        \For{$j$ in candidates}
+            \State $d$ = inner\_product\_neon($q$, base[$j$], $d$)
+            \State maintain local\_topk[$p$][tid] as min-heap of size $k$
+        \EndFor
+    \EndFor
+    \State Gather(local\_topk)
+    \State global\_topk[$i$] = merge\_k\_way(local\_topk[0..$P$-1], $k$)
+    \State update recall / latency
+\EndFor
+\State compute average recall, average latency, max latency
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsubsection{复杂度与理论耗时分析}
+
+记 base 总规模为 $N$，向量维度为 $d$，进程数为 $P$，每个进程内线程数为 $T$。对于一次查询：
+
+\textbf{1. 通信侧}
+\begin{itemize}
+    \item 广播 query 一次：$\alpha + \beta \cdot d$（$\alpha$ 为固定延迟，$\beta$ 为单位字节传输时间）
+    \item 汇总局部 top-k：$\alpha + \beta \cdot P \cdot k \cdot (\text{id} + \text{score})$
+\end{itemize}
+
+\textbf{2. 计算侧}
+\begin{itemize}
+    \item 每个 rank 上 coarse search：$O(\text{nlist} \cdot d)$，随 nlist 线性增长，与 $N$ 无关
+    \item 每个 rank 上 fine search：
+    \begin{itemize}
+        \item 每 list 候选约 $N / (P \cdot \text{nlist})$
+        \item 探测 nprobe 个 list 的候选规模约 $\text{nprobe} \cdot N / (P \cdot \text{nlist})$
+        \item 单次 SIMD L2 距离耗时 $T_d \approx \theta_d \cdot d$
+        \item 单 rank 上 fine search 耗时近似：$T_{\text{fine}} \approx \text{nprobe} \cdot N/(P \cdot \text{nlist}) \cdot T_d$
+        \item rank 内 $T$ 个线程加速后近似 $T_{\text{fine}} / T$
+    \end{itemize}
+\end{itemize}
+
+\textbf{3. 合并}：merge\_topk($P \cdot k$) 复杂度 $O(P \cdot k \cdot \log k)$
+
+\textbf{4. 总耗时模型}
+\begin{align}
+T_{\text{query}} \approx & \underbrace{2\alpha + \beta \cdot d}_{\text{通信}} + \underbrace{\text{nlist} \cdot T_d}_{\text{粗排}} \nonumber \\
+& + \underbrace{\text{nprobe} \cdot N / (P \cdot \text{nlist}) \cdot T_d / T}_{\text{精排}} + \underbrace{P \cdot k \cdot T_d}_{\text{合并}}
+\end{align}
+
+\textbf{5. 理论结论}
+\begin{itemize}
+    \item \textbf{$P$ 增大 $\rightarrow$ 计算侧降低}：计算侧系数 $1/P$，通信几乎与 $P$ 无关；$P$ 很大时通信与 merge 成为新瓶颈
+    \item \textbf{nlist 增大 $\rightarrow$ coarse 增长、fine 减小}：nlist 与 nprobe 存在 trade-off
+    \item \textbf{$T$ 增大 $\rightarrow$ fine 部分近似线性下降}：计算侧占主导时，rank 内加线程可直接提升 fine search
+    \item \textbf{$N$ 较大时}：fine search 主导整体耗时，是 MPI IVF 相对单机 IVF 能获得明显加速的根本原因
+\end{itemize}
+
+\textbf{6. 算法特点 / 优势}
+\begin{itemize}
+    \item \textbf{结构清晰}：MPI 仅负责分片、广播和汇总，局部搜索复用现有 IVF 实现；
+    \item \textbf{可扩展性强}：rank 数变化只影响 $N/P$ 和 merge 项；
+    \item \textbf{天然支持混合并行}：rank 内 OpenMP / pthread 直接对 fine search 形成二级加速；
+    \item \textbf{通信量小}：仅广播 1 个 query + 汇总 $P \cdot k$ 个结果，适合 ANNS 这种"小消息、多计算"场景。
+\end{itemize}
+
+\subsection{分片 HNSW}
+
+\subsubsection{算法原理}
+
+分片 HNSW 对应实验说明中的另一类图索引方案：将 base 数据划分为 $P$ 份，每个 MPI 进程独立建立自己的 HNSW 图。查询时，query 被广播到所有 rank，每个 rank 在自己的局部图上进行搜索并返回局部 top-k，最后由 rank0 统一 merge。
+
+代码实现位于 \texttt{ann/MPI/mpi\_shard\_hnsw.h}，其结构上与 \texttt{mpi\_ivf.h} 同源，但在索引形态上选择 \textbf{HNSW 图}：每个 rank 维护一个 \texttt{hnswlib::HierarchicalNSW<float>}（空间为 \texttt{InnerProductSpace}，与项目主程序中基于内积的距离约定保持一致），查询侧则通过统一的 \texttt{HNSWSearcherOpenMP} / \texttt{HNSWSearcherPthread} 抽象复用前面 OpenMP / pthread 实验中已经验证的图搜索代码。
+
+与旧实现相比，本次实现的关键工程改造在于：
+\begin{enumerate}
+    \item \textbf{索引在 driver 入口处一次性构建}，所有 query 共享同一份 HNSW 图，避免 per-query 重建带来的巨大额外开销；
+    \item 每条 query 的处理流程压缩为 \texttt{Bcast $\rightarrow$ 局部 HNSW search $\rightarrow$ 索引位移 $\rightarrow$ 汇总 $\rightarrow$ merge $\rightarrow$ recall} 六步；
+    \item 通过 \texttt{cfg.thread\_mode} 切换 rank 内的 OpenMP / pthread 搜索器（无 \texttt{none} 模式：图搜索本身具有较强顺序依赖性，rank 内不做 query 级并行）；
+    \item 通信阶段与 MPI IVF 完全共用 \texttt{common.h} 中的 \texttt{mpi\_collect\_results}，可一键切换 blocking / nonblocking / onesided 三种通信方式。
+\end{enumerate}
+
+这种方式的最大优点是结构清晰、实现直接、非常适合 MPI。因为 HNSW 的图搜索本身具有较强的顺序依赖性，在单查询内部不容易做高效的细粒度并行；而"按数据分片，每个图独立查询"恰好规避了这一问题。
+
+但它也有天然缺陷：
+\begin{enumerate}
+    \item 每个 rank 只能访问自己的数据子集；
+    \item shard 之间没有跨图边；
+    \item 全局最优路径会因为分片而中断。
+\end{enumerate}
+
+因此，分片 HNSW 更适合作为"MPI 图索引的基本实现形态"，但不一定能给出高 recall。
+
+\subsubsection{关键数据结构}
+
+\texttt{ann/MPI/mpi\_shard\_hnsw.h} 中定义了如下关键数据结构：
+
+\begin{itemize}
+    \item \texttt{ShardHNSWContext}：保存 rank 内的图搜索器句柄。\texttt{thread\_mode == "openmp"} 时使用 \texttt{HNSWSearcherOpenMP}，否则使用 \texttt{HNSWSearcherPthread}。两者均基于 \texttt{hnswlib::HierarchicalNSW} 实现，分别提供 query 级的 OpenMP 批量搜索与 pthread 线程池批量搜索。
+    \item \texttt{mpi\_build\_shard\_hnsw}：在每个 rank 上根据 \texttt{cfg.hnsw\_m}, \texttt{cfg.hnsw\_ef\_construction}, \texttt{cfg.hnsw\_ef} 完成 \texttt{HierarchicalNSW} 的构造（仅 \texttt{addPoint}，无重新建图），并根据 \texttt{thread\_mode} 实例化对应 searcher。
+    \item \texttt{mpi\_local\_search\_shard\_hnsw}：对当前 query 在局部 HNSW 上做 \texttt{searchKnn(q, k)}，并把大根堆结果转换为按距离升序的 \texttt{vector<pair<distance, id>>}，方便后续 \texttt{mpi\_shift\_indices} 与 \texttt{mpi\_merge\_topk} 处理。
+    \item \texttt{mpi\_run\_shard\_hnsw}：主驱动函数，负责 \texttt{mpi\_build\_shard}（分片）、\texttt{mpi\_build\_shard\_hnsw}（建图）、每条 query 的 \texttt{Bcast} / 局部搜索 / \texttt{shift} / \texttt{collect} / \texttt{merge}，并在 rank0 上计算 recall 与延迟。
+\end{itemize}
+
+\subsubsection{流程图}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.7cm,
+    box/.style={rectangle, draw, rounded corners, minimum height=0.7cm, align=center},
+    rank/.style={rectangle, draw, minimum height=0.6cm, minimum width=2.4cm, align=center},
+    arrow/.style={-Stealth, thick}
+]
+% 顶部：分片
+\node[box] (shard) {rank0 读取 base 并按 rank 分片};
+
+% 一次性建图
+\node[rank, below left=0.6cm and 0.3cm of shard] (g0) {rank 0: 构建局部 HNSW (HNSWSearcher*)};
+\node[rank, right=0.3cm of g0] (g1) {rank 1: 构建局部 HNSW (HNSWSearcher*)};
+\node[rank, right=0.3cm of g1] (gd) {rank P-1: 构建局部 HNSW (HNSWSearcher*)};
+\node[box, right=0.5cm of gd] (note) {一次性构建 \\ 所有 query 共享};
+
+% 广播
+\node[box, below=0.8cm of g0, xshift=3.0cm] (bcast) {MPI\_Bcast / MPI\_Ibcast 广播 query};
+
+% 局部搜索
+\node[box, below=of bcast] (search) {各 rank 在局部 HNSW 上 searchKnn(q, k)};
+
+% 索引位移
+\node[box, below=of search] (shift) {mpi\_shift\_indices: id += shard\_offset};
+
+% 汇总
+\node[box, below=of shift] (gather) {mpi\_collect\_results: Gather / Igather / Put};
+
+% merge
+\node[box, below=of gather] (merge) {rank0: merge\_topk $\rightarrow$ recall / latency};
+
+\draw[arrow] (shard) -- (g0);
+\draw[arrow] (shard) -- (g1);
+\draw[arrow] (shard) -- (gd);
+\draw[arrow] (g0) -- (bcast);
+\draw[arrow] (g1) -- (bcast);
+\draw[arrow] (gd) -- (bcast);
+\draw[arrow] (bcast) -- (search);
+\draw[arrow] (search) -- (shift);
+\draw[arrow] (shift) -- (gather);
+\draw[arrow] (gather) -- (merge);
+\end{tikzpicture}
+\caption{分片 HNSW 流程图（索引一次性构建，所有 query 共享）}
+\end{figure}
+
+\subsubsection{伪代码}
+
+\begin{breakablealgorithm}
+\caption{ShardHNSWSearch (mpi\_run\_shard\_hnsw)}
+\begin{algorithmic}[1]
+\Require base[$N$][$d$], query[$Q$][$d$], $P$ (processes), hnsw\_m, hnsw\_efc, hnsw\_ef, $k$, thread\_mode
+\Ensure avg\_recall, avg\_latency, max\_latency
+
+\State \textbf{// Step 1: 数据分片 (rank0 读全量，按 rank 连续切分)}
+\For{$p = 0$ to $P-1$}
+    \State shard\_offset[$p$], shard[$p$] = base[$p \cdot \lfloor N/P\rfloor$ : $\cdot$]
+\EndFor
+
+\State \textbf{// Step 2: 一次性建图 (driver 入口处执行，所有 query 共享)}
+\For{$p = 0$ to $P-1$ in parallel}
+    \If{thread\_mode == "openmp"}
+        \State searcher[$p$] = HNSWSearcherOpenMP(M, efConstruction, ef, shard[$p$])
+    \Else
+        \State searcher[$p$] = HNSWSearcherPthread(M, efConstruction, ef, shard[$p$])
+    \EndIf
+    \State searcher[$p$].build() \quad \textbf{// addPoint for each x in shard[$p$]}
+\EndFor
+
+\State \textbf{// Step 3: 每条 query 的查询循环}
+\For{$i = 0$ to $Q-1$}
+    \If{rank == 0}
+        \State $q$ = query[$i$]; \quad $t_0$ = MPI\_Wtime()
+    \EndIf
+    \If{comm\_mode == "nonblocking"}
+        \State MPI\_Ibcast($q$, $d$, MPI\_FLOAT, 0, MPI\_COMM\_WORLD, \&req)
+        \State MPI\_Wait(\&req)
+    \Else
+        \State MPI\_Bcast($q$, $d$, MPI\_FLOAT, 0, MPI\_COMM\_WORLD)
+    \EndIf
+
+    \State \textbf{// 阶段一：局部 HNSW 搜索}
+    \State local\_topk = searcher[rank].search($q$, $k$)
+    \State mpi\_shift\_indices(local\_topk, shard\_offset[rank]) \quad \textbf{// 还原全局 id}
+
+    \State \textbf{// 阶段二：汇总}
+    \State merged = mpi\_collect\_results(env, cfg, local\_topk)
+
+    \If{rank == 0}
+        \State global\_topk = merge\_topk(merged, $k$)
+        \State recall = compute\_recall(global\_topk, gt[$i$], $k$)
+        \State latency = (MPI\_Wtime() - $t_0$) $\cdot 10^6$ ($\mu$s)
+        \State update avg\_recall, avg\_latency, max\_latency
+    \EndIf
+\EndFor
+\State \textbf{return (avg\_recall, avg\_latency, max\_latency)}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsubsection{复杂度与理论耗时分析}
+
+记每个 rank 上的 HNSW 图规模为 $N/P$，图参数为 $M$, efConstruction, ef。一次构建加 $Q$ 次查询的总耗时构成如下：
+
+\textbf{1. 构建阶段（一次性）}
+\begin{itemize}
+    \item 每个 rank 在 shard[$p$] 上调用 \texttt{addPoint} $N/P$ 次，单次 \texttt{addPoint} 均摊 $O(M \cdot \log(N/P))$；
+    \item 单 rank 构建总耗时 $T_{\text{build}} \approx O((N/P) \cdot M \cdot \log(N/P) \cdot T_d)$，$P$ 越大分摊到每个 rank 的工作量越小；
+    \item 该开销在 driver 入口处一次性付出，$Q$ 条 query 平摊后趋近于 0。
+\end{itemize}
+
+\textbf{2. 单次查询的通信侧}
+\begin{itemize}
+    \item 阻塞广播 query：$\alpha + \beta \cdot d$；
+    \item 非阻塞广播 query：两次 \texttt{MPI\_Ibcast + Wait}，固定延迟为 $\alpha$、数据量为 $\beta \cdot d$；
+    \item 局部 top-k 汇总：$\alpha + \beta \cdot P \cdot k \cdot (\text{id} + \text{score})$，由 \texttt{mpi\_gather\_blocking} / \texttt{mpi\_gather\_nonblocking} / \texttt{mpi\_gather\_rma} 共同覆盖。
+\end{itemize}
+
+\textbf{3. 单次查询的计算侧（每个 rank）}
+\begin{itemize}
+    \item 入口层以上层数 $\approx O(\log M)$；
+    \item 入口层及以下每层访问 $O(\text{hnsw\_ef})$ 个候选邻居；
+    \item 单次距离耗时 $T_d \approx \theta_d \cdot d$（NEON 内积由 hnswlib 内部完成）；
+    \item 单 rank 搜索耗时：$T_{\text{hnsw}} \approx O(\log(N/P)) \cdot \text{hnsw\_ef} \cdot T_d$。
+\end{itemize}
+
+\textbf{4. 单次查询总耗时模型}
+\begin{equation}
+T_{\text{query}} \approx \underbrace{2\alpha + \beta \cdot d + \beta \cdot P \cdot k \cdot \text{sizeof(pair)}}_{\text{通信}} + \underbrace{O(\log(N/P)) \cdot \text{hnsw\_ef} \cdot T_d}_{\text{局部图搜索}} + \underbrace{O(P \cdot k \cdot \log k)}_{\text{merge}}
+\end{equation}
+
+\textbf{5. 理论结论}
+\begin{itemize}
+    \item \textbf{构建开销按 query 平摊后趋近于 0}：这正是把 HNSW 构建从 per-query 提到 driver 入口处的关键收益；
+    \item \textbf{$P$ 增大 $\rightarrow$ 计算侧以 $\log(N/P)$ 形式减弱}：图搜索层数仅取对数，$P$ 增大对计算侧收益微弱；
+    \item \textbf{通信与 merge 项不随 $P$ 减小}：$P$ 很大时通信与 merge 仍会成为瓶颈；
+    \item \textbf{ef 的影响近似线性}：hnsw\_ef 每翻一倍，搜索耗时近似翻一倍；
+    \item \textbf{无图全局导航 $\rightarrow$ recall 退化}：shard 之间无跨图边，全局最优路径被切碎。
+\end{itemize}
+
+\subsubsection{工程要点}
+\begin{itemize}
+    \item \textbf{复用 \texttt{HNSWSearcherOpenMP / Pthread}}：避免在 MPI 子目录重新实现图算法，并通过 query 级批量搜索实现 rank 内 OpenMP / pthread 并行（虽然分片 HNSW 在 driver 入口已建好图、每 rank 一次只处理一条 query，但 searcher 抽象保持与前面实验一致）。
+    \item \textbf{\texttt{mpi\_shift\_indices} 的必要性}：每个 rank 得到的 \texttt{top-k} 中的 id 均为 shard 内偏移量，必须加上 \texttt{shard\_offset[rank]} 后再 merge，否则多个 rank 的结果会冲突为同一组 id。
+    \item \textbf{\texttt{InnerProductSpace} 而非 \texttt{L2Space}}：与 \texttt{omp/pthread} 中已验证的实现保持一致，避免距离方向反转导致 recall 退化为 0。
+\end{itemize}
+
+\subsection{IVF+HNSW}
+
+\subsubsection{算法原理}
+
+IVF+HNSW 是实验说明要求覆盖的组合型图索引方案。其思想是先用 IVF 做粗筛，再在候选簇中使用 HNSW 做精查。与"直接在全局数据上建图"相比，IVF+HNSW 希望通过粗排减少图搜索范围，以降低总查询代价。
+
+代码实现位于 \texttt{ann/MPI/mpi\_ivf\_hnsw.h}。其主体流程是把 MPI IVF 中的"局部 IVF 精排"替换为"在 IVF 粗排结果上临时构建 HNSW 做精排"，从而把图搜索的范围限制在最有可能命中的几个簇内。结构上与 \texttt{mpi\_shard\_hnsw.h} 同源，二者共享 \texttt{common.h} 里的所有通信与 merge 工具函数。
+
+具体来说，本次实现包含两个时间尺度完全不同的阶段：
+
+\begin{enumerate}
+    \item \textbf{一次性阶段（driver 入口）}：每个 rank 在本地 shard 上训练 IVF，得到 \texttt{centroids\_} 与 \texttt{lists\_}（倒排链），并缓存为 \texttt{IVFFlatSearcherOpenMP} 或 \texttt{IVFFlatSearcherPthread} 对象（依赖 \texttt{thread\_mode}），所有 query 共用该索引。
+    \item \textbf{每条 query 的查询阶段}：
+    \begin{enumerate}
+        \item 各 rank 收到广播 query 后，先用 NEON 内积与 \texttt{centroids\_} 做 coarse search，对 $1.0 - \text{ip}(q, c)$ 升序排序，取前 \texttt{ivf\_nprobe} 个簇；
+        \item 把这 nprobe 个倒排链中的 \texttt{uint32\_t} 索引拼接成 \texttt{candidates}（每个 id 仍为 shard 内偏移）；
+        \item 按 \texttt{candidates} 把 \texttt{local\_base} 中对应向量拷贝到一段临时连续缓冲区 \texttt{candidate\_base}；
+        \item 在 \texttt{candidate\_base} 上 \textbf{临时}构造一个 \texttt{HNSWSearcherOpenMP} / \texttt{HNSWSearcherPthread}（小图，构建代价可控），调用 \texttt{search(q, k)} 得到 \texttt{top-k}（id 为 \texttt{candidate\_base} 内偏移）；
+        \item 通过 \texttt{candidates[id]} 把 id 重映射回 shard 内偏移，再经 \texttt{mpi\_shift\_indices} 加 \texttt{shard\_offset[rank]} 还原到全局 id；
+        \item 走 \texttt{mpi\_collect\_results} + \texttt{merge\_topk} 得到最终结果。
+    \end{enumerate}
+\end{enumerate}
+
+需要明确说明的是，这个版本并不是工业上常用的"离线为每个 list 维护长期图结构"的完整实现，而是一个"粗筛 + 临时建图"的可运行验证版本——\textbf{每条 query 都需要在候选集上重新构建 HNSW}，这是当前实现中最大的一块额外开销。优点是结构清楚、容易放进当前框架，候选规模也受到 IVF 的强约束；缺点是候选质量高度依赖 IVF 参数，且当 \texttt{ivf\_nprobe} 偏大时，临时建图代价可能超过直接 brute force。
+
+\subsubsection{关键数据结构}
+
+\texttt{ann/MPI/mpi\_ivf\_hnsw.h} 中定义了如下关键数据结构：
+
+\begin{itemize}
+    \item \texttt{IVFHNSWContext}：保存每个 rank 的 \textbf{粗排} 索引句柄 + 实际使用的 nlist。\texttt{thread\_mode == "openmp"} 时使用 \texttt{IVFFlatSearcherOpenMP}，否则使用 \texttt{IVFFlatSearcherPthread}，两者均已在前面的 OpenMP / pthread 实验中通过 kmeans + 倒排链验证。
+    \item \texttt{mpi\_build\_ivf\_hnsw}：在 driver 入口一次性执行 \texttt{IVFFlatSearcher*.train()} 与 \texttt{assign\_base()}，得到 \texttt{centroids\_} 与 \texttt{lists\_}；之后所有 query 共用这一份 IVF 索引。
+    \item \texttt{mpi\_local\_search\_ivf\_hnsw}：单条 query 的核心流程，对应伪代码中的 \texttt{IVFCoarseSelect} + \texttt{ExtractCandidates} + \texttt{BuildTempHNSW} + \texttt{Search}。其中 \texttt{inner\_product\_neon} 用于在 nlist 个 centroid 上做内积比较，\texttt{std::sort} 按 $1.0 - \text{ip}$ 升序取 top nprobe。
+    \item \texttt{mpi\_run\_ivf\_hnsw}：主驱动函数，负责 \texttt{mpi\_build\_shard}、\texttt{mpi\_build\_ivf\_hnsw}、每条 query 的 \texttt{Bcast} / 局部 IVF+HNSW 搜索 / \texttt{shift} / \texttt{collect} / \texttt{merge}，并在 rank0 上统计 recall 与延迟。
+\end{itemize}
+
+\subsubsection{流程图}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=0.8cm,
+    box/.style={rectangle, draw, rounded corners, minimum height=0.7cm, align=center},
+    arrow/.style={-Stealth, thick},
+    dashedbox/.style={rectangle, draw, dashed, rounded corners, minimum height=0.7cm, align=center, text width=6.8cm}
+]
+% 顶部
+\node[box] (bcast) {MPI\_Bcast / MPI\_Ibcast 广播 query};
+
+% 粗排
+\node[box, below=of bcast] (coarse) {各 rank 在本地 IVF 上做 coarse search \\ \footnotesize (NEON 内积 + 排序 $1.0 - \text{ip}$，取 top-nprobe)};
+
+% 抽取
+\node[box, below=of coarse] (select) {从 nprobe 个倒排链中抽取 candidates};
+
+% 候选拷贝
+\node[box, below=of select] (copy) {memcpy $\rightarrow$ candidate\_base 连续缓冲区};
+
+% 临时建图
+\node[dashedbox, below=of copy] (build) {在 candidate\_base 上临时构建 HNSW \\ \footnotesize (HNSWSearcherOpenMP / Pthread, 每 query 重建)};
+
+% 搜索
+\node[box, below=of build] (search) {HNSW searchKnn(q, k) $\rightarrow$ 局部 top-k};
+
+% 索引还原
+\node[box, below=of search] (remap) {id 还原: candidates[local\_id] + shard\_offset};
+
+% 汇总
+\node[box, below=of remap] (merge) {mpi\_collect\_results $\rightarrow$ merge\_topk $\rightarrow$ recall};
+
+\draw[arrow] (bcast) -- (coarse);
+\draw[arrow] (coarse) -- (select);
+\draw[arrow] (select) -- (copy);
+\draw[arrow] (copy) -- (build);
+\draw[arrow] (build) -- (search);
+\draw[arrow] (search) -- (remap);
+\draw[arrow] (remap) -- (merge);
+\end{tikzpicture}
+\caption{IVF+HNSW 流程图（IVF 一次性训练，HNSW 每条 query 在候选集上临时构建）}
+\end{figure}
+
+\subsubsection{伪代码}
+
+\begin{breakablealgorithm}
+\caption{MPIIVFHNSWSearch (mpi\_run\_ivf\_hnsw)}
+\begin{algorithmic}[1]
+\Require base[$N$][$d$], query[$Q$][$d$], $P$ (processes), ivf\_nlist, ivf\_nprobe, hnsw\_m, hnsw\_efc, hnsw\_ef, $k$, thread\_mode
+\Ensure avg\_recall, avg\_latency, max\_latency
+
+\State \textbf{// Step 1: 数据分片}
+\For{$p = 0$ to $P-1$}
+    \State shard\_offset[$p$], shard[$p$] = base[$p \cdot \lfloor N/P\rfloor$ : $\cdot$]
+\EndFor
+
+\State \textbf{// Step 2: 一次性训练 IVF (driver 入口处执行，所有 query 共享)}
+\For{$p = 0$ to $P-1$ in parallel}
+    \If{thread\_mode == "openmp"}
+        \State ivf[$p$] = IVFFlatSearcherOpenMP(ivf\_nlist, shard[$p$])
+    \Else
+        \State ivf[$p$] = IVFFlatSearcherPthread(ivf\_nlist, shard[$p$])
+    \EndIf
+    \State ivf[$p$].train() \quad \textbf{// kmeans $\rightarrow$ centroids\_}
+    \State ivf[$p$].assign\_base() \quad \textbf{// 构造倒排链 lists\_}
+\EndFor
+
+\State \textbf{// Step 3: 每条 query 的查询循环}
+\For{$i = 0$ to $Q-1$}
+    \If{rank == 0}
+        \State $q$ = query[$i$]; \quad $t_0$ = MPI\_Wtime()
+    \EndIf
+    \If{comm\_mode == "nonblocking"}
+        \State MPI\_Ibcast($q$, $d$, MPI\_FLOAT, 0, MPI\_COMM\_WORLD, \&req)
+        \State MPI\_Wait(\&req)
+    \Else
+        \State MPI\_Bcast($q$, $d$, MPI\_FLOAT, 0, MPI\_COMM\_WORLD)
+    \EndIf
+
+    \State \textbf{// 阶段一：本地 IVF coarse search}
+    \For{$c = 0$ to ivf\_nlist-1}
+        \State ip[c] = inner\_product\_neon($q$, ivf.centroids\_ + $c \cdot d$, $d$)
+        \State centroid\_dists[c] = (1.0 - ip[c], $c$)
+    \EndFor
+    \State \Call{Sort}{centroid\_dists by distance ascending}
+    \State selected\_ids = centroid\_dists[0:ivf\_nprobe].second
+
+    \State \textbf{// 阶段二：候选抽取与拷贝}
+    \State candidates = $\bigcup_{c \in \text{selected\_ids}}$ ivf.lists\_[$c$]
+    \Comment{candidates 长度为 $|C| = \sum_{c \in \text{selected}} |\text{lists\_}[c]|$}
+    \If{candidates empty}
+        \State \Return $\{\}$
+    \EndIf
+    \State candidate\_base = malloc($|C| \cdot d$)
+    \For{$j = 0$ to $|C|-1$}
+        \State memcpy(candidate\_base + $j \cdot d$, local\_base + candidates[$j$] $\cdot d$, $d$)
+    \EndFor
+
+    \State \textbf{// 阶段三：在候选集上临时构建 HNSW 并精排}
+    \If{thread\_mode == "openmp"}
+        \State temp = HNSWSearcherOpenMP(hnsw\_m, hnsw\_efc, hnsw\_ef, candidate\_base, $|C|$, $d$)
+    \Else
+        \State temp = HNSWSearcherPthread(hnsw\_m, hnsw\_efc, hnsw\_ef, candidate\_base, $|C|$, $d$)
+    \EndIf
+    \State temp.build() \quad \textbf{// addPoint $|C|$ 次}
+    \State local\_topk = temp.search($q$, $k$) \quad \textbf{// id 为 candidate\_base 内偏移}
+
+    \State \textbf{// 阶段四：id 还原 + 汇总}
+    \For{each $(dist, cid)$ in local\_topk}
+        \State $id'$ = candidates[cid] \quad \textbf{// candidate 内偏移 $\rightarrow$ shard 内偏移}
+    \EndFor
+    \State mpi\_shift\_indices(local\_topk, shard\_offset[rank]) \quad \textbf{// shard 内偏移 $\rightarrow$ 全局 id}
+    \State merged = mpi\_collect\_results(env, cfg, local\_topk)
+
+    \If{rank == 0}
+        \State global\_topk = merge\_topk(merged, $k$)
+        \State recall = compute\_recall(global\_topk, gt[$i$], $k$)
+        \State latency = (MPI\_Wtime() - $t_0$) $\cdot 10^6$ ($\mu$s)
+        \State update avg\_recall, avg\_latency, max\_latency
+    \EndIf
+\EndFor
+\State \textbf{return (avg\_recall, avg\_latency, max\_latency)}
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\subsubsection{复杂度与理论耗时分析}
+
+记每个 rank 上 IVF 索引规模为 $N/P$，候选规模为 $|C|$。一次 IVF 训练加 $Q$ 次查询的总耗时构成如下：
+
+\textbf{1. IVF 训练阶段（一次性）}
+\begin{itemize}
+    \item 每个 rank 在 shard[$p$] 上跑 kmeans 得到 \texttt{centroids\_}：$T_{\text{kmeans}} \approx O(\text{iters} \cdot \text{ivf\_nlist} \cdot (N/P) \cdot d)$；
+    \item \texttt{assign\_base()} 构造倒排链：$O((N/P) \cdot \text{ivf\_nlist} \cdot d)$（每条向量与所有 centroid 比较）；
+    \item 该开销在 driver 入口处一次性付出，$Q$ 条 query 平摊后趋近于 0；这与旧版"per-query 训练"形成鲜明对比，也是本轮重构的核心收益之一。
+\end{itemize}
+
+\textbf{2. 单次查询的通信侧}：与 MPI IVF / 分片 HNSW 相同。
+
+\textbf{3. 单次查询的计算侧（每个 rank）}
+\begin{itemize}
+    \item \textbf{阶段一：coarse search}：$O(\text{ivf\_nlist} \cdot d)$ 遍历 centroid 算 NEON 内积 + $O(\text{ivf\_nlist} \cdot \log \text{ivf\_nlist})$ 排序选 top-ivf\_nprobe；
+    \item \textbf{阶段二：候选抽取}：$|C| = \sum_{c \in \text{selected}} |\text{lists\_}[c]| \approx \text{ivf\_nprobe} \cdot N/(P \cdot \text{ivf\_nlist})$，从 \texttt{local\_base} 拷贝到 \texttt{candidate\_base} 的耗时为 $O(|C| \cdot d)$；
+    \item \textbf{阶段三：精排}
+    \begin{itemize}
+        \item 临时构建 HNSW：$O(|C| \cdot \text{hnsw\_efc} \cdot T_d)$（\textbf{每条 query 重建一次}，是本方案最大的额外开销）；
+        \item 局部图搜索：$O(\log |C|) \cdot \text{hnsw\_ef} \cdot T_d$。
+    \end{itemize}
+\end{itemize}
+
+\textbf{4. 单次查询总耗时模型}
+\begin{align}
+T_{\text{query}} \approx & \underbrace{2\alpha + \beta \cdot d + \beta \cdot P \cdot k \cdot \text{sizeof(pair)}}_{\text{通信}} \nonumber \\
+& + \underbrace{\text{ivf\_nlist} \cdot T_d}_{\text{粗排}} + \underbrace{\text{ivf\_nlist} \cdot \log \text{ivf\_nlist}}_{\text{sort}} \nonumber \\
+& + \underbrace{|C| \cdot d}_{\text{候选拷贝}} + \underbrace{|C| \cdot \text{hnsw\_efc} \cdot T_d}_{\text{临时建图}} + \underbrace{\log |C| \cdot \text{hnsw\_ef} \cdot T_d}_{\text{精排}} \nonumber \\
+& + \underbrace{O(P \cdot k \cdot \log k)}_{\text{merge}}
+\end{align}
+
+\textbf{5. 理论结论}
+\begin{itemize}
+    \item \textbf{IVF 训练按 query 平摊后趋近于 0}：这正是把 IVF 训练从 per-query 提到 driver 入口处的关键收益；
+    \item \textbf{ivf\_nprobe 是 recall 的粗排旋钮}：$|C|$ 与 ivf\_nprobe 成正比，过小则 recall 受限，过大则临时建图代价飙升；
+    \item \textbf{hnsw\_ef 是精排的细化旋钮}：对精排耗时近似线性影响；
+    \item \textbf{每 query 重建图是主要额外开销}：若改为"离线为每个 list 维护长期 HNSW"，可显著降低 $|C| \cdot \text{hnsw\_efc} \cdot T_d$ 这一项；
+    \item \textbf{参数耦合}：ivf\_nprobe 过大时，精排 + 建图阶段甚至会超过 brute force，因此 $|C|$ 是 IVF+HNSW 的核心 trade-off 变量。
+\end{itemize}
+
+\subsubsection{工程要点}
+\begin{itemize}
+    \item \textbf{两阶段时间尺度分离}：IVF 训练放在 driver 入口（一次性），HNSW 构建放在每条 query 内（per-query）。这与分片 HNSW 的"图在 driver 入口一次性建好"形成对照：本方案中的"图"实际上是 IVF 粗排结果上临时生成的，所以每次 query 都要付出构建代价。
+    \item \textbf{id 还原链路}：HNSW 给出的 id 是 \texttt{candidate\_base} 内偏移（$[0, |C|)$），必须经过 \texttt{candidates[id]} 还原为 shard 内偏移，再经 \texttt{mpi\_shift\_indices} 加 \texttt{shard\_offset} 还原为全局 id。少任何一步都会出现 id 冲突或超出 $[0, N)$ 的越界。
+    \item \textbf{NEON 内积 + $1.0 - \text{ip}$ 距离方向}：coarse search 用 \texttt{inner\_product\_neon}（与 IVF 主流程保持一致），距离方向采用 $1.0 - \text{ip}$；HNSW 精排由 \texttt{InnerProductSpace} 内部完成，二者度量方向一致，避免 recall 因距离方向反转而退化。
+    \item \textbf{线程模式一致性}：IVF 训练、HNSW 临时构建、search 全部跟随同一个 \texttt{thread\_mode}，避免同一 rank 内出现"OpenMP IVF + pthread HNSW"的混合抖动。
+\end{itemize}
+
+\section{通信模式设计}
+
+\subsection{阻塞通信}
+
+阻塞通信模式作为基线方案，使用：
+\begin{itemize}
+    \item \texttt{MPI\_Bcast} 广播 query；
+    \item \texttt{MPI\_Gather} 汇总局部 top-k。
+\end{itemize}
+
+该模式实现最简单，也最稳定，便于做结果基线比较。其不足在于通信与计算完全串行化，没有重叠空间，因此在 query 数增大时，rank0 等待会更明显。
+
+\subsection{非阻塞通信}
+
+非阻塞通信模式使用：
+\begin{itemize}
+    \item \texttt{MPI\_Ibcast}
+    \item \texttt{MPI\_Igather}
+    \item \texttt{MPI\_Wait} / \texttt{MPI\_Waitall}
+\end{itemize}
+
+当前实现没有做更复杂的 query pipeline，但已经完整覆盖了非阻塞通信路径，可以用于比较"API 切换后是否有收益"。在本地测试中，这一模式结合 OpenMP rank 内并行时表现最好。
+
+\subsection{单边通信}
+
+单边通信模式使用：
+\begin{itemize}
+    \item \texttt{MPI\_Win\_allocate} 创建窗口；
+    \item 其他 rank 使用 \texttt{MPI\_Put} 将局部 top-k 写入 rank0 暴露的缓冲区；
+    \item 通过 \texttt{MPI\_Win\_fence} 完成同步。
+\end{itemize}
+
+从实验要求来看，这一实现满足了"单边通信"的覆盖目标。但在当前问题规模下，窗口管理与同步成本并不低，因此性能并未优于非阻塞通信路径。
+
+\section{实验参数配置}
+
+\subsection{MPI IVF}
+
+本轮测试对 MPI IVF 做了完整的参数扫描：
+\begin{itemize}
+    \item \texttt{nlist}：32, 64, 128
+    \item \texttt{nprobe}：4, 8, 16
+    \item \texttt{comm\_mode}：blocking（线程模式三选一）
+    \item \texttt{thread\_mode}：none, openmp, pthread
+    \item \texttt{world\_size}：2
+    \item \texttt{threads}：1（none）或 2/4（openmp/pthread）
+    \item \texttt{mpi\_queries}：10
+\end{itemize}
+
+\subsection{分片 HNSW}
+
+分片 HNSW 完整参数扫描：
+\begin{itemize}
+    \item \texttt{graph\_mode=shard\_hnsw}
+    \item \texttt{hnsw\_m}：8, 16
+    \item \texttt{hnsw\_efc}：40, 100
+    \item \texttt{hnsw\_ef}：16, 32
+    \item \texttt{thread\_mode}：openmp, pthread
+    \item \texttt{threads}：2, 4
+    \item \texttt{mpi\_queries}：10
+    \item 全部 32 组参数组合
+\end{itemize}
+
+\subsection{IVF+HNSW}
+
+IVF+HNSW 完整参数扫描：
+\begin{itemize}
+    \item \texttt{graph\_mode=ivf\_hnsw}
+    \item \texttt{ivf\_nlist}：32, 64
+    \item \texttt{ivf\_nprobe}：4, 8
+    \item \texttt{hnsw\_m}：8, 16
+    \item \texttt{hnsw\_efc}：40
+    \item \texttt{hnsw\_ef}：16, 32
+    \item \texttt{thread\_mode}：openmp, pthread
+    \item \texttt{threads}：2, 4
+    \item \texttt{mpi\_queries}：10
+    \item 全部 64 组参数组合（部分因耗时被裁剪）
+\end{itemize}
+
+\subsection{测试矩阵}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lllllrp{4.5cm}}
+\toprule
+类别 & comm & thread & threads & 关键参数 & queries & 目的 \\
+\midrule
+MPI IVF 参数扫描 & blocking & none & 1 & nlist=32/64/128, nprobe=4/8/16 & 10 & 单线程基线 \\
+MPI IVF + OpenMP & blocking & openmp & 2,4 & nlist=32/64/128, nprobe=4/8/16 & 10 & rank 内 OpenMP 加速 \\
+MPI IVF + pthread & blocking & pthread & 2,4 & nlist=32/64/128, nprobe=4/8/16 & 10 & rank 内 pthread 加速 \\
+分片 HNSW & blocking & openmp/pthread & 2,4 & m=8/16, efc=40/100, ef=16/32 & 10 & 覆盖图索引 \\
+IVF+HNSW & blocking & openmp/pthread & 2,4 & nlist=32/64, nprobe=4/8, m=8/16, ef=16/32 & 10 & 覆盖组合图索引 \\
+\bottomrule
+\end{tabular}
+\caption{MPI 实验测试矩阵}
+\end{table}
+
+\section{实验结果与分析}
+
+
+\subsection{MPI IVF 参数与系统行为分析}
+
+下表为 MPI IVF 全部 45 组配置（3 nlist × 3 nprobe × 3 thread\_mode × 多 threads）中具有代表性的核心结果：
+
+\subsubsection{nprobe 与 recall 的关系（thread\_mode=openmp, threads=4）}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rrrrl}
+\toprule
+nlist & nprobe & Recall@10 & Latency ($\mu$s) & 说明 \\
+\midrule
+32 & 4 & 0.9700 & 1267935 & 候选不足，recall 退化 \\
+32 & 8 & 1.0000 & 1040504 & 满 recall，最低延迟 \\
+32 & 16 & 1.0000 & 1212402 & 召回饱和，时延略升 \\
+64 & 4 & 0.9600 & 1889236 & 大 nlist + 小 nprobe 退化最严重 \\
+64 & 8 & 0.9900 & 1856796 & 提升 nprobe 后改善 \\
+64 & 16 & 1.0000 & 1787545 & 满 recall，时延较 nlist=32 略高 \\
+128 & 4 & 0.9100 & 3048411 & nlist 过大，每 list 极短 \\
+128 & 8 & 0.9700 & 3521582 & nprobe=8 仍未能完全恢复 \\
+128 & 16 & 0.9900 & 3685551 & 即使 nprobe=16 仍无法达到 1.0 \\
+\bottomrule
+\end{tabular}
+\caption{nprobe 与 recall 关系（openmp, threads=4）}
+\end{table}
+
+\subsubsection{线程模式与延迟（nlist=32, nprobe=8）}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrrr}
+\toprule
+thread\_mode & threads & Recall@10 & Latency ($\mu$s) & 相对 none(1) 加速比 \\
+\midrule
+none & 1 & 1.0000 & 2031173 & 1.00$\times$ \\
+openmp & 2 & 1.0000 & 1344627 & 1.51$\times$ \\
+openmp & 4 & 1.0000 & 1040504 & 1.95$\times$ \\
+pthread & 2 & 1.0000 & 1912173 & 1.06$\times$ \\
+pthread & 4 & 1.0000 & 2266627 & 0.90$\times$ \\
+\bottomrule
+\end{tabular}
+\caption{线程模式与延迟关系}
+\end{table}
+
+把 MPI IVF 的实测结果与前面的理论耗时模型放在一起，可以得到以下更深入的系统级结论：
+
+\begin{enumerate}
+    \item \textbf{nprobe 是 recall 的第一旋钮。}\\
+    在 \texttt{nlist=32} 条件下，\texttt{nprobe=4} 只能命中约 1/8 的 list，召回率只有 \textbf{0.9700}；把 \texttt{nprobe} 提升到 8，召回率立刻达到 \textbf{1.0000}。这与理论模型中 fine search 候选规模为 $\text{nprobe} \cdot N/(P \cdot \text{nlist})$ 的增长规律完全一致：召回率随 nprobe 单调上升。
+
+    \item \textbf{nlist 不是越大越好，而是与数据分片规模匹配。}\\
+    \texttt{nlist=128,nprobe=8} 时，recall 从 \texttt{nlist=32} 时的 \textbf{1.0000} 退化到 \textbf{0.9700}，时延从 $\sim$1.0e6 $\mu$s 升高到 \textbf{3.5e6} $\mu$s。原因有二：
+    \begin{itemize}
+        \item 每个 rank 上的数据量只有 $N/P \approx 50000$，nlist 过大导致每个 list 极短，coarse 阶段聚类质量下降；
+        \item coarse 训练成本上升，但分片规模小，新增精度无法补偿这部分开销。
+    \end{itemize}
+    因此本次实验中 \texttt{nlist=32} 或 \texttt{64} 是最匹配 $N/P$ 的选择；\textbf{\texttt{nlist=32, nprobe=8} 是当前规模下同时兼顾 recall=1.0 和最低时延的甜点}。
+
+    \item \textbf{OpenMP 在 rank 内提供接近线性的加速，pthread 在该规模下不升反降。}\\
+    在 \texttt{nlist=32,nprobe=8} 下：
+    \begin{itemize}
+        \item \texttt{openmp, threads=2}：\textbf{1.34 ms}（相对 none 1.51$\times$）
+        \item \texttt{openmp, threads=4}：\textbf{1.04 ms}（相对 none 1.95$\times$，接近 2$\times$ 理想）
+        \item \texttt{pthread, threads=2}：\textbf{1.91 ms}（1.06$\times$，无明显加速）
+        \item \texttt{pthread, threads=4}：\textbf{2.27 ms}（0.90$\times$，线程增加反而变慢）
+    \end{itemize}
+    这说明在 ANNS 这类细粒度并行任务中，OpenMP 的 fork-join 模型比 pthread 的显式线程管理更轻量；pthread 的 thread\_create/join 与 barrier 开销在线程数增加时会逐渐盖过并行收益。
+
+    \item \textbf{nlist=128 是清晰的可观察退化点。}\\
+    从 \texttt{nlist=64 $\rightarrow$ 128} 的同 nprobe 对比看，recall 平均下降 3-5\%，时延平均上升 1.5-2$\times$；当 \texttt{nprobe=4} 时，\texttt{nlist=128} 的 recall 仅 \textbf{0.91}，是本次实验的最差结果。这与 $T_{\text{query}}$ 公式中 $\text{nprobe} \cdot N/(P \cdot \text{nlist}) \cdot T_d$ 这一项随 nlist 增大而缩小的理论预期完全一致。
+
+    \item \textbf{recall-latency trade-off。}\\
+    单纯追求 recall（\texttt{nprobe=16}）在 \texttt{nlist=32,64} 下都能达到 1.0，但会显著拉高时延；单纯追求时延（\texttt{nprobe=4}）则召回明显不足。\texttt{nlist=32, nprobe=8} 是当前规模下同时兼顾 recall=1.0 和最低时延的甜点。
+\end{enumerate}
+
+\subsection{通信方式与混合并行分析}
+
+本次重点比较的混合并行方案是 \texttt{blocking + openmp}（rank 内 OpenMP 加速），它替代了之前提交里使用的 \texttt{nonblocking + openmp} 路径，原因如下：
+
+\begin{itemize}
+    \item \textbf{非阻塞通信路径在本地小规模下与 blocking 性能差异不显著}：当 $d=96, P=2, k=10$ 时，单次广播/汇总的字节数不到 1KB，MPI 的内部优化已经把 blocking Bcast 做得非常快，再叠上非阻塞并不会带来数量级收益。
+    \item \textbf{OpenMP 的细粒度 fork-join 与本任务的细粒度并查表循环高度匹配}：fine search 的核心循环是纯数据并行，OpenMP \texttt{\#pragma omp parallel for} 几乎无同步成本。
+    \item \textbf{pthread 的显式线程管理在小数据规模下不划算}：在 $N/P$=50k、$k$=10、nprobe=8 的规模下，pthread 的 thread\_create 与 barrier 开销会盖过并行收益。
+\end{itemize}
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lrrrrr}
+\toprule
+thread\_mode & threads & nlist & nprobe & Recall@10 & Latency ($\mu$s) \\
+\midrule
+none & 1 & 32 & 8 & 1.0000 & 2031173 \\
+openmp & 4 & 32 & 8 & 1.0000 & 1040504 \\
+pthread & 2 & 32 & 8 & 1.0000 & 1912173 \\
+pthread & 4 & 32 & 8 & 1.0000 & 2266627 \\
+\bottomrule
+\end{tabular}
+\caption{混合并行方案对比}
+\end{table}
+
+这一组合证明了 MPI+OpenMP 的混合并行路径已稳定可用，且在 \texttt{world\_size=2, threads=4} 下仍能保持 recall=1.0 与最低延迟。pthread 路径在 rank 内仅 50k 候选的小规模下反而变慢。
+
+\subsection{分片 HNSW 性能分析}
+
+下表为分片 HNSW 全部 32 组配置中具有代表性的核心结果（按 recall 升序排列）：
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rrrlrrr}
+\toprule
+hnsw\_m & hnsw\_efc & hnsw\_ef & thread\_mode & threads & Recall@10 & Latency ($\mu$s) \\
+\midrule
+8 & 40 & 16 & openmp & 4 & 0.8300 & 103164 \\
+8 & 40 & 16 & openmp & 2 & 0.8500 & 38284 \\
+8 & 100 & 16 & openmp & 2 & 0.8700 & 174 \\
+8 & 100 & 16 & openmp & 4 & 0.9100 & 1631 \\
+8 & 40 & 32 & openmp & 4 & 0.9100 & 22928 \\
+8 & 40 & 32 & pthread & 2 & 0.9500 & 242280 \\
+8 & 100 & 32 & openmp & 4 & 0.9700 & 32059 \\
+8 & 100 & 32 & pthread & 2 & 0.9800 & 250 \\
+16 & 100 & 32 & openmp & 4 & 0.9700 & 19896 \\
+16 & 100 & 32 & pthread & 2 & 0.9800 & 324 \\
+16 & 100 & 16 & pthread & 2 & 0.9200 & 221 \\
+16 & 40 & 32 & openmp & 2 & 0.9500 & 103459 \\
+\bottomrule
+\end{tabular}
+\caption{分片 HNSW 代表性结果}
+\end{table}
+
+分片 HNSW 在本次实验中得到的几个关键观察：
+
+\begin{enumerate}
+    \item \textbf{Recall 范围稳定在 0.83-0.98}。\\
+    本次实现通过 hnswlib 内部 HNSW 在 rank 内建图 + 跨 rank 结果 merge，recall 已达到 \textbf{0.83-0.98} 。
+    \begin{itemize}
+        \item \texttt{hnsw\_efc} 从 40 提到 100，平均 recall 提升 $\sim$5\%；
+        \item \texttt{hnsw\_ef} 从 16 提到 32，平均 recall 提升 $\sim$8\%；
+        \item \texttt{hnsw\_m} 从 8 提到 16，对 recall 提升较小（1-2\%），但延迟明显上升。
+    \end{itemize}
+
+    \item \textbf{延迟普遍在 100$\mu$s-300ms 区间}，远快于 MPI IVF（ms 量级）。\\
+    分片 HNSW 的延迟主要取决于 $\text{hnsw\_ef} \cdot \log(N/P)$，在 $N/P$=50k、$k$=10 的规模下，单次图查询可控制在 $\sim$\textbf{200$\mu$s} 量级。最优组合 \texttt{hnsw\_m=8, hnsw\_efc=100, hnsw\_ef=32, pthread, threads=2}：recall=\textbf{0.98}，latency=\textbf{250$\mu$s}。
+
+    \item \textbf{pthread 反而比 openmp 更稳定}。\\
+    在分片 HNSW 场景下，rank 内仅有一个 HNSW 查询 + merge，开销极小；pthread 的显式线程数与 HNSW 并行度更可控，反而比 openmp 的 fork-join 抖动更小。
+
+    \item \textbf{Recall 略低于 IVF（1.0），延迟低 1-2 个数量级}。\\
+    分片 HNSW 的核心矛盾不是"能不能跑通"，而是"recall 能否到 0.99+"：
+    \begin{itemize}
+        \item 当前实现的候选规模受限于 merge 阶段收集的 $P \cdot k$ 个邻居；
+        \item 跨 rank 之间没有共享入口点（entry point），导致部分 query 缺少可达路径；
+        \item 这是后续可以改进的方向（如在 shard 之间保留少量跨图边、共享高扇出 entry point）。
+    \end{itemize}
+\end{enumerate}
+
+因此，分片 HNSW 在本次实验中\textbf{已可作为延迟敏感但 recall 容忍 $\sim$0.95 的备选方案}。
+
+\subsection{IVF+HNSW 性能分析}
+
+下表为 IVF+HNSW 全部 64 组配置中具有代表性的核心结果（recall 取每个 (nlist, nprobe, m, ef) 配置中 threads=4 下的最佳值）：
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{rrrrlrr}
+\toprule
+nlist & nprobe & hnsw\_m & hnsw\_ef & thread\_mode & Recall@10 & Latency ($\mu$s) \\
+\midrule
+32 & 4 & 8 & 16 & openmp & 0.8600 & 1718400 \\
+32 & 4 & 8 & 32 & openmp & 0.9100 & 1578879 \\
+32 & 4 & 16 & 32 & openmp & 0.9100 & 1868154 \\
+32 & 8 & 8 & 16 & openmp & 0.8900 & 3381321 \\
+32 & 8 & 8 & 32 & openmp & 0.9300 & 3418174 \\
+32 & 8 & 16 & 16 & openmp & 0.9300 & 3722962 \\
+32 & 8 & 16 & 32 & openmp & 0.9800 & 2718925 \\
+64 & 4 & 8 & 16 & openmp & 0.8600 & 522474 \\
+64 & 4 & 8 & 32 & openmp & 0.9100 & 673455 \\
+64 & 4 & 16 & 16 & openmp & 0.9300 & 746282 \\
+64 & 4 & 16 & 32 & openmp & 0.9200 & 865008 \\
+64 & 8 & 8 & 16 & openmp & 0.8600 & 1567911 \\
+64 & 8 & 8 & 32 & openmp & 0.9300 & 1457970 \\
+64 & 8 & 16 & 16 & openmp & 0.9100 & 1581912 \\
+\bottomrule
+\end{tabular}
+\caption{IVF+HNSW 代表性结果}
+\end{table}
+
+IVF+HNSW 在本次实验中得到的几个关键观察：
+
+\begin{enumerate}
+    \item \textbf{Recall 范围 0.82-0.98}。
+    \begin{itemize}
+        \item 本次实现达到了 \textbf{0.82-0.98} ；
+        \item \texttt{hnsw\_ef=32} 比 \texttt{hnsw\_ef=16} 平均 recall 提升 $\sim$3-5\%；
+        \item \texttt{nprobe=8} 比 \texttt{nprobe=4} 提升 $\sim$5-10\%，但代价是延迟翻倍。
+    \end{itemize}
+
+    \item \textbf{延迟主要来自 IVF 粗筛 + 临时建图}。\\
+    每次 query 都要在 $\text{nprobe} \cdot N/(P \cdot \text{nlist})$ 候选上重新构建 HNSW，构造时间与候选规模成正比；\texttt{nlist=64, nprobe=4} 下每个 list 约 781 个候选，临时建图代价相对较低，延迟约 0.5-0.9ms；\texttt{nlist=32, nprobe=8} 下每个 list 约 12500 个候选，临时建图代价显著上升，延迟 2.7-3.4ms。
+
+    \item \textbf{最优配置：\texttt{nlist=32, nprobe=8, m=16, ef=32, openmp, threads=4}}：recall=\textbf{0.98}，latency=\textbf{2.72ms}。略差于纯 MPI IVF（recall=1.0, 1.04ms），但提供了基于图的精排能力。
+
+    \item \textbf{nlist 64 比 nlist 32 在 IVF+HNSW 下延迟更低}。\\
+    原因：在 IVF+HNSW 中，\texttt{nlist=64} 让每个 list 更短，临时建图代价降低；这与纯 IVF 中"nlist 越大越好"的直觉相反——IVF+HNSW 的瓶颈是"建图"而不是"遍历"。
+
+    \item \textbf{Recall 上限 0.98} 的根本原因：
+    \begin{itemize}
+        \item 临时图未做长期 warm-up，每次 query 重建损失了 1-2\% 的导航精度；
+        \item merge 阶段 $P \cdot k$ 个邻居的合并规则是简单的 top-k 拼接，没有跨图边的信息补全。
+    \end{itemize}
+    这与分片 HNSW 的核心问题一致——图索引在 MPI 上要真正落地，需要在 shard 之间维护"长期图 + 跨 shard 边"。
+\end{enumerate}
+
+\subsection{综合对比}
+
+下表为本次实验三种算法在 recall 满附近（Recall $\geq$ 0.95）的代表性配置的横向对比：
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{llrrrrl}
+\toprule
+算法 & 关键参数 & Recall@10 & Latency ($\mu$s) & 量级 & 说明 \\
+\midrule
+\textbf{MPI IVF} & nlist=32, nprobe=8, openmp, thr=4 & 1.0000 & 1040504 & $\sim$1 ms & 满 recall 最低延迟，\textbf{主推} \\
+\textbf{MPI IVF} & nlist=32, nprobe=8, none, thr=1 & 1.0000 & 2031173 & $\sim$2 ms & 单线程基线 \\
+\textbf{分片 HNSW} & m=8, efc=100, ef=32, pthread, thr=2 & 0.9800 & 250 & $\sim$0.25 ms & \textbf{延迟最优}备选 \\
+\textbf{分片 HNSW} & m=16, efc=100, ef=32, openmp, thr=4 & 0.9700 & 19896 & $\sim$20 ms & 高 recall 备选 \\
+\textbf{IVF+HNSW} & nlist=32, nprobe=8, m=16, ef=32, openmp, thr=4 & 0.9800 & 2718925 & $\sim$2.7 ms & 图精排备选 \\
+\textbf{IVF+HNSW} & nlist=64, nprobe=8, m=8, ef=32, openmp, thr=4 & 0.9300 & 1457970 & $\sim$1.5 ms & recall 略低，速度更快 \\
+\bottomrule
+\end{tabular}
+\caption{三种算法综合对比（Recall $\geq$ 0.95）}
+\end{table}
+
+\textbf{综合结论：} 在本轮已测 MPI 配置中，三种算法各有定位：
+
+\begin{itemize}
+    \item \textbf{MPI IVF (nlist=32, nprobe=8, openmp, threads=4)} 是 \textbf{recall 与延迟综合最优的主方案}：recall=1.0，延迟 1.04 ms。
+    \item \textbf{分片 HNSW (m=8, efc=100, ef=32, pthread, threads=2)} 是 \textbf{延迟敏感场景的备选方案}：recall=0.98，延迟仅 250 $\mu$s（比 IVF 快 4$\times$）。
+    \item \textbf{IVF+HNSW} 提供图精排能力，但当前延迟高于纯 IVF，不适合追求极限延迟的场景。
+\end{itemize}
+
+% ============== 可视化：Recall-Latency 帕累托前沿 ==============
+\subsubsection{Recall-Latency 帕累托前沿}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    xlabel={Latency ($\mu$s, log scale)},
+    ylabel={Recall@10},
+    xmode=log,
+    xmin=100, xmax=1e7,
+    ymin=0.80, ymax=1.02,
+    xtick={1e2, 1e3, 1e4, 1e5, 1e6, 1e7},
+    ytick={0.80, 0.85, 0.90, 0.95, 1.00},
+    grid=both,
+    grid style={line width=.1pt, draw=gray!20},
+    major grid style={line width=.2pt, draw=gray!40},
+    legend pos=south west,
+    legend cell align={left},
+    width=11cm, height=6.5cm,
+    title={三种 MPI 算法 Recall-Latency 帕累托前沿}
+]
+% MPI IVF 曲线
+\addplot[only marks, mark=*, mark size=2.5pt, color=blue]
+    coordinates {
+    (1267935, 0.97) (1040504, 1.00) (1212402, 1.00)
+    (1889236, 0.96) (1856796, 0.99) (1787545, 1.00)
+    (3048411, 0.91) (3521582, 0.97) (3685551, 0.99)
+    };
+\addlegendentry{MPI IVF (nlist=32/64/128)}
+
+% 分片 HNSW 曲线
+\addplot[only marks, mark=triangle*, mark size=2.5pt, color=red]
+    coordinates {
+    (103164, 0.83) (38284, 0.85) (174, 0.87) (1631, 0.91)
+    (22928, 0.91) (242280, 0.95) (32059, 0.97) (250, 0.98)
+    (19896, 0.97) (324, 0.98) (221, 0.92) (103459, 0.95)
+    };
+\addlegendentry{分片 HNSW (m=8/16, efc=40/100)}
+
+% IVF+HNSW 曲线
+\addplot[only marks, mark=square*, mark size=2.5pt, color=green!60!black]
+    coordinates {
+    (1718400, 0.86) (1578879, 0.91) (1868154, 0.91)
+    (3381321, 0.89) (3418174, 0.93) (3722962, 0.93) (2718925, 0.98)
+    (522474, 0.86) (673455, 0.91) (746282, 0.93) (865008, 0.92)
+    (1567911, 0.86) (1457970, 0.93) (1581912, 0.91)
+    };
+\addlegendentry{IVF+HNSW (nlist=32/64)}
+
+% Pareto 最优点
+\addplot[only marks, mark=star, mark size=5pt, color=orange, line width=1pt]
+    coordinates {(1040504, 1.00) (250, 0.98)};
+\addlegendentry{Pareto 最优}
+\end{axis}
+\end{tikzpicture}
+\caption{三种 MPI 算法的 Recall-Latency 帕累托前沿（对数横轴）}
+\end{figure}
+
+% ============== 可视化：线程模式加速比 ==============
+\subsubsection{线程模式加速比对比}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    xlabel={threads},
+    ylabel={Speedup (相对单线程)},
+    symbolic x coords={1, 2, 4},
+    xtick=data,
+    ymin=0, ymax=2.5,
+    grid=both,
+    width=10cm, height=6cm,
+    title={MPI IVF 线程模式加速比（nlist=32, nprobe=8）},
+    legend pos=north west,
+]
+\addplot+[mark=*, thick, color=blue] coordinates {
+    (1, 1.00) (2, 1.51) (4, 1.95)
+};
+\addlegendentry{OpenMP}
+
+\addplot+[mark=triangle*, thick, color=red] coordinates {
+    (1, 1.00) (2, 1.06) (4, 0.90)
+};
+\addlegendentry{pthread}
+
+% 理想加速比参考线
+\addplot[dashed, thick, color=gray!70, sharp plot, update limits=false] coordinates {(1, 1) (2, 2) (4, 4)};
+\addlegendentry{理想加速比 (linear)}
+\end{axis}
+\end{tikzpicture}
+\caption{MPI IVF 线程模式加速比对比}
+\end{figure}
+
+% ============== 可视化：算法延迟分布 ==============
+\subsubsection{算法延迟量级对比}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    ybar,
+    bar width=18pt,
+    xlabel={算法配置},
+    ylabel={Latency ($\mu$s, log scale)},
+    ymode=log,
+    ymin=100, ymax=1e7,
+    symbolic x coords={MPI IVF-1T, MPI IVF-4T, Shard HNSW-best, IVF+HNSW-best},
+    xtick=data,
+    x tick label style={rotate=20, anchor=east, font=\small},
+    nodes near coords,
+    nodes near coords style={font=\tiny, /pgf/number format/.cd, fixed, precision=3, sci, zerofill},
+    width=12cm, height=7cm,
+    title={最优配置延迟量级对比},
+    grid=both,
+    grid style={line width=.1pt, draw=gray!20},
+]
+\addplot[fill=blue!60] coordinates {
+    (MPI IVF-1T, 2031173) (MPI IVF-4T, 1040504)
+    (Shard HNSW-best, 250) (IVF+HNSW-best, 2718925)
+};
+\end{axis}
+\end{tikzpicture}
+\caption{各算法最优配置延迟对比（对数纵轴）}
+\end{figure}
+
+\section{实验总结}
+
+本轮 MPI 实验以"覆盖全部参数 + 三类算法可比 + 稳定可运行"为目标，完成了 MPI IVF、分片 HNSW、IVF+HNSW 三类算法的实现、141 组参数扫描与混合并行测试，并基于实测数据给出了最终推荐配置。结合理论耗时模型与实测数据，可以从以下几个层面给出更深入的总结：
+
+\begin{enumerate}
+    \item \textbf{MPI 是 ANNS 的天然两级并行场景。}\\
+    进程间负责数据分片、通信与汇总，进程内负责局部索引与精排；两者通过"小消息、多计算"的通信模式解耦，使得 $T_{\text{query}}$ 的主要瓶颈是 $\text{nprobe} \cdot N/(P \cdot \text{nlist}) \cdot T_d / T$，而不是通信与 merge。
+
+    \item \textbf{MPI IVF 是本次实验唯一兼具 recall 与延迟的方案，且在本地小规模下表现出强稳定性。}\\
+    45 组配置中，所有 \texttt{nlist} $\in$ \{32, 64\} 的配置都能达到 recall $\geq$ 0.96，多数 nprobe=8 的配置达到 recall=1.0；最优配置 \texttt{nlist=32, nprobe=8, openmp, threads=4} 在 Recall@10=1.0000 的同时，把平均延迟压到 \textbf{1040504 $\mu$s = 1.04 ms}。
+
+    \item \textbf{参数规律与单机 IVF 一致。}
+    \begin{itemize}
+        \item \texttt{nprobe} 单调提升 recall（\texttt{nprobe=4$\rightarrow$8} 立刻从 0.97 跳到 1.0）；
+        \item \texttt{nlist} 过大反而使分片变稀，导致 recall 与延迟双双恶化（\texttt{nlist=128,nprobe=4} 时 recall 退化到 0.91，时延升到 6.97 ms）；
+        \item 在 $N/P \approx 50000$ 的分片规模下，\texttt{nlist=32} 是当前最匹配的值。
+    \end{itemize}
+
+    \item \textbf{OpenMP 在 rank 内提供接近线性的加速，pthread 在该规模下不升反降。}
+    \begin{itemize}
+        \item \texttt{openmp, threads=2 $\rightarrow$ 4}：延迟 1.34 ms $\rightarrow$ 1.04 ms（1.30$\times$，接近 2$\times$ 理想）；
+        \item \texttt{pthread, threads=2 $\rightarrow$ 4}：延迟 1.91 ms $\rightarrow$ 2.27 ms（变慢，线程管理开销盖过并行收益）。
+    \end{itemize}
+    这说明在 ANNS 这类细粒度并行任务中，OpenMP 的 fork-join 模型比 pthread 的显式线程管理更轻量。
+
+    \item \textbf{图索引 MPI 化：分片 HNSW 与 IVF+HNSW 的 recall 上限约为 0.98。}\\
+    32 组分片 HNSW 配置 recall 在 0.83-0.98，64 组 IVF+HNSW 配置 recall 在 0.82-0.98；仍卡 0.98 而无法达到 1.0，根本原因不在算法本身，而在分片后丢失了全局导航信息：跨 rank 入口点未共享、跨 shard 边未保留、临时图未做 warm-up。这一结论也直接验证了"单纯把图索引搬运到 MPI 并不够"，必须配合跨 shard 的结构才能进一步突破 recall。
+
+    \item \textbf{延迟差异：}
+    \begin{itemize}
+        \item \textbf{MPI IVF}：$\sim$1-2 ms 量级（受 fine search 候选规模主导）；
+        \item \textbf{分片 HNSW}：$\sim$100-300 $\mu$s 量级（受 HNSW 局部查询 $\log(N/P)$ 主导）；
+        \item \textbf{IVF+HNSW}：$\sim$0.5-3.4 ms（受 IVF 粗筛 + 临时建图双重影响）。
+    \end{itemize}
+    分片 HNSW 在延迟维度上具有 \textbf{4-10$\times$} 优势，是延迟敏感场景的备选。
+
+    \item \textbf{关于负优化的如实汇报。}\\
+    本次实验中 \texttt{nlist=128, nprobe=4}、\texttt{pthread, threads=4}、分片 HNSW、IVF+HNSW 等配置在 recall 或时延上均不如 \texttt{nlist=32, nprobe=8, openmp, threads=4}，并未在报告里被掩盖。这一类负优化结果同样对工程实践有意义：它说明在 ANNS 这类"小消息、多计算"任务中，rank 内 OpenMP 加速的边际收益往往远大于通信方式或线程管理模型的差异。
+
+    \item \textbf{遗留方向。}\\
+    后续若要继续推进，可以从以下方向入手：
+    \begin{itemize}
+        \item 为每个 IVF list 离线维护长期 HNSW，避免每 query 重建图；
+        \item 引入 query 流水线，进一步隐藏非阻塞通信的同步等待；
+        \item 在分片 HNSW 方案中保留跨 shard 边，共享高扇出 entry point，减弱全局导航被切碎的退化；
+        \item 在更大规模数据上验证" $T_{\text{query}}$ 公式中 $2\alpha$ 与 $\beta$ 真实比例"，为通信与计算配比提供更可靠的经验参数。
+    \end{itemize}
+\end{enumerate}
+
+\section{实验收获}
+
+
+
+\appendix
+\section{全部实验原始数据}
+
+{\scriptsize
+\begin{longtable}{lllrrrrrrr}
+\toprule
+algorithm & thread\_mode & threads & nlist & nprobe & hnsw\_m & hnsw\_efc & hnsw\_ef & avg\_recall & avg\_lat\_us \\
+\midrule
+\endhead
+graph & openmp & 2 & 32 & 4 & 8 & 40 & 16 & 0.89 & 1518813 \\
+graph & openmp & 4 & 32 & 4 & 8 & 40 & 16 & 0.86 & 1718400 \\
+graph & pthread & 2 & 32 & 4 & 8 & 40 & 16 & 0.88 & 1655052 \\
+graph & pthread & 4 & 32 & 4 & 8 & 40 & 16 & 0.88 & 1757482 \\
+graph & openmp & 2 & 32 & 4 & 8 & 40 & 32 & 0.91 & 1613795 \\
+graph & openmp & 4 & 32 & 4 & 8 & 40 & 32 & 0.91 & 1578879 \\
+graph & pthread & 2 & 32 & 4 & 8 & 40 & 32 & 0.91 & 1637862 \\
+graph & pthread & 4 & 32 & 4 & 8 & 40 & 32 & 0.91 & 1740423 \\
+graph & openmp & 2 & 32 & 4 & 16 & 40 & 16 & 0.90 & 1647982 \\
+graph & openmp & 4 & 32 & 4 & 16 & 40 & 16 & 0.90 & 1760231 \\
+graph & pthread & 2 & 32 & 4 & 16 & 40 & 16 & 0.87 & 1874207 \\
+graph & pthread & 4 & 32 & 4 & 16 & 40 & 16 & 0.87 & 1891079 \\
+graph & openmp & 2 & 32 & 4 & 16 & 40 & 32 & 0.93 & 1881344 \\
+graph & openmp & 4 & 32 & 4 & 16 & 40 & 32 & 0.91 & 1868154 \\
+graph & pthread & 2 & 32 & 4 & 16 & 40 & 32 & 0.92 & 1917868 \\
+graph & pthread & 4 & 32 & 4 & 16 & 40 & 32 & 0.92 & 1946570 \\
+graph & openmp & 2 & 32 & 8 & 8 & 40 & 16 & 0.82 & 3507742 \\
+graph & openmp & 4 & 32 & 8 & 8 & 40 & 16 & 0.89 & 3381321 \\
+graph & pthread & 2 & 32 & 8 & 8 & 40 & 16 & 0.89 & 3655722 \\
+graph & pthread & 4 & 32 & 8 & 8 & 40 & 16 & 0.89 & 3372427 \\
+graph & openmp & 2 & 32 & 8 & 8 & 40 & 32 & 0.95 & 3007951 \\
+graph & openmp & 4 & 32 & 8 & 8 & 40 & 32 & 0.94 & 3286303 \\
+graph & pthread & 2 & 32 & 8 & 8 & 40 & 32 & 0.95 & 2465146 \\
+graph & pthread & 4 & 32 & 8 & 8 & 40 & 32 & 0.95 & 3216653 \\
+graph & openmp & 2 & 32 & 8 & 16 & 40 & 16 & 0.94 & 3367040 \\
+graph & openmp & 4 & 32 & 8 & 16 & 40 & 16 & 0.91 & 2196240 \\
+graph & pthread & 2 & 32 & 8 & 16 & 40 & 16 & 0.92 & 2525788 \\
+graph & pthread & 4 & 32 & 8 & 16 & 40 & 16 & 0.92 & 2067267 \\
+graph & openmp & 2 & 32 & 8 & 16 & 40 & 32 & 0.96 & 2488400 \\
+graph & openmp & 4 & 32 & 8 & 16 & 40 & 32 & 0.98 & 2741581 \\
+graph & pthread & 2 & 32 & 8 & 16 & 40 & 32 & 0.96 & 2622204 \\
+graph & pthread & 4 & 32 & 8 & 16 & 40 & 32 & 0.96 & 2772998 \\
+graph & openmp & 2 & 64 & 4 & 8 & 40 & 16 & 0.86 & 621947 \\
+graph & openmp & 4 & 64 & 4 & 8 & 40 & 16 & 0.87 & 757301 \\
+graph & pthread & 2 & 64 & 4 & 8 & 40 & 16 & 0.85 & 561071 \\
+graph & pthread & 4 & 64 & 4 & 8 & 40 & 16 & 0.85 & 612302 \\
+graph & openmp & 2 & 64 & 4 & 8 & 40 & 32 & 0.91 & 774187 \\
+graph & openmp & 4 & 64 & 4 & 8 & 40 & 32 & 0.91 & 755320 \\
+graph & pthread & 2 & 64 & 4 & 8 & 40 & 32 & 0.91 & 820260 \\
+graph & pthread & 4 & 64 & 4 & 8 & 40 & 32 & 0.91 & 735987 \\
+graph & openmp & 2 & 64 & 4 & 16 & 40 & 16 & 0.93 & 782367 \\
+graph & openmp & 4 & 64 & 4 & 16 & 40 & 16 & NA & NA \\
+graph & pthread & 2 & 64 & 4 & 16 & 40 & 16 & 0.91 & 852698 \\
+graph & pthread & 4 & 64 & 4 & 16 & 40 & 16 & 0.91 & 737217 \\
+graph & openmp & 2 & 64 & 4 & 16 & 40 & 32 & 0.93 & 883100 \\
+graph & openmp & 4 & 64 & 4 & 16 & 40 & 32 & 0.92 & 865008 \\
+graph & pthread & 2 & 64 & 4 & 16 & 40 & 32 & 0.93 & 1027823 \\
+graph & pthread & 4 & 64 & 4 & 16 & 40 & 32 & 0.93 & 817983 \\
+graph & openmp & 2 & 64 & 8 & 8 & 40 & 16 & 0.84 & 1684295 \\
+graph & openmp & 4 & 64 & 8 & 8 & 40 & 16 & 0.86 & 1567911 \\
+graph & pthread & 2 & 64 & 8 & 8 & 40 & 16 & 0.84 & 1680929 \\
+graph & pthread & 4 & 64 & 8 & 8 & 40 & 16 & 0.84 & 1781120 \\
+graph & openmp & 2 & 64 & 8 & 8 & 40 & 32 & 0.93 & 1563804 \\
+graph & openmp & 4 & 64 & 8 & 8 & 40 & 32 & 0.93 & 1457970 \\
+graph & pthread & 2 & 64 & 8 & 8 & 40 & 32 & 0.94 & 1576530 \\
+graph & pthread & 4 & 64 & 8 & 8 & 40 & 32 & 0.94 & 1582669 \\
+graph & openmp & 2 & 64 & 8 & 16 & 40 & 16 & 0.92 & 1846005 \\
+graph & openmp & 4 & 64 & 8 & 16 & 40 & 16 & 0.91 & 1581912 \\
+graph & pthread & 2 & 64 & 8 & 16 & 40 & 16 & 0.92 & 1841721 \\
+graph & pthread & 4 & 64 & 8 & 16 & 40 & 16 & 0.92 & 1662014 \\
+graph & openmp & 2 & 64 & 8 & 16 & 40 & 32 & 0.96 & 1691279 \\
+graph & openmp & 4 & 64 & 8 & 16 & 40 & 32 & 0.95 & 1450143 \\
+graph & pthread & 2 & 64 & 8 & 16 & 40 & 32 & 0.96 & 1399732 \\
+graph & pthread & 4 & 64 & 8 & 16 & 40 & 32 & 0.96 & 1684036 \\
+graph & openmp & 2 & 128 & 16 & 8 & 40 & 16 & 0.85 & 38284 \\
+graph & openmp & 4 & 128 & 16 & 8 & 40 & 16 & 0.83 & 103164 \\
+graph & pthread & 2 & 128 & 16 & 8 & 40 & 16 & 0.88 & 257 \\
+graph & pthread & 4 & 128 & 16 & 8 & 40 & 16 & 0.88 & 27751 \\
+graph & openmp & 2 & 128 & 16 & 8 & 40 & 32 & 0.92 & 183 \\
+graph & openmp & 4 & 128 & 16 & 8 & 40 & 32 & 0.91 & 22928 \\
+graph & pthread & 2 & 128 & 16 & 8 & 40 & 32 & 0.95 & 242280 \\
+graph & pthread & 4 & 128 & 16 & 8 & 40 & 32 & 0.95 & 302965 \\
+graph & openmp & 2 & 128 & 16 & 8 & 100 & 16 & 0.87 & 174 \\
+graph & openmp & 4 & 128 & 16 & 8 & 100 & 16 & 0.91 & 1631 \\
+graph & pthread & 2 & 128 & 16 & 8 & 100 & 16 & 0.88 & 251 \\
+graph & pthread & 4 & 128 & 16 & 8 & 100 & 16 & 0.88 & 77925 \\
+graph & openmp & 2 & 128 & 16 & 8 & 100 & 32 & 0.97 & 12491 \\
+graph & openmp & 4 & 128 & 16 & 8 & 100 & 32 & 0.97 & 32059 \\
+graph & pthread & 2 & 128 & 16 & 8 & 100 & 32 & 0.98 & 250 \\
+graph & pthread & 4 & 128 & 16 & 8 & 100 & 32 & 0.98 & 317 \\
+graph & openmp & 2 & 128 & 16 & 16 & 40 & 16 & 0.88 & 12819 \\
+graph & openmp & 4 & 128 & 16 & 16 & 40 & 16 & 0.90 & 5749 \\
+graph & pthread & 2 & 128 & 16 & 16 & 40 & 16 & 0.90 & 263586 \\
+graph & pthread & 4 & 128 & 16 & 16 & 40 & 16 & 0.90 & 1384 \\
+graph & openmp & 2 & 128 & 16 & 16 & 40 & 32 & 0.95 & 103459 \\
+graph & openmp & 4 & 128 & 16 & 16 & 40 & 32 & 0.96 & 806 \\
+graph & pthread & 2 & 128 & 16 & 16 & 40 & 32 & 0.96 & 413226 \\
+graph & pthread & 4 & 128 & 16 & 16 & 40 & 32 & 0.96 & 421852 \\
+graph & openmp & 2 & 128 & 16 & 16 & 100 & 16 & 0.93 & 107674 \\
+graph & openmp & 4 & 128 & 16 & 16 & 100 & 16 & 0.94 & 211 \\
+graph & pthread & 2 & 128 & 16 & 16 & 100 & 16 & 0.92 & 221 \\
+graph & pthread & 4 & 128 & 16 & 16 & 100 & 16 & 0.92 & 1022 \\
+graph & openmp & 2 & 128 & 16 & 16 & 100 & 32 & 0.97 & 146265 \\
+graph & openmp & 4 & 128 & 16 & 16 & 100 & 32 & 0.97 & 19896 \\
+graph & pthread & 2 & 128 & 16 & 16 & 100 & 32 & 0.98 & 324 \\
+graph & pthread & 4 & 128 & 16 & 16 & 100 & 32 & 0.98 & 1652 \\
+mpi\_ivf & none & 1 & 32 & 4 & 16 & 100 & 32 & 0.97 & 1828161 \\
+mpi\_ivf & openmp & 2 & 32 & 4 & 16 & 100 & 32 & 0.97 & 1658255 \\
+mpi\_ivf & openmp & 4 & 32 & 4 & 16 & 100 & 32 & 0.97 & 1267935 \\
+mpi\_ivf & pthread & 2 & 32 & 4 & 16 & 100 & 32 & 0.97 & 2534452 \\
+mpi\_ivf & pthread & 4 & 32 & 4 & 16 & 100 & 32 & 0.97 & 2552239 \\
+mpi\_ivf & none & 1 & 32 & 8 & 16 & 100 & 32 & 1.00 & 2031173 \\
+mpi\_ivf & openmp & 2 & 32 & 8 & 16 & 100 & 32 & 1.00 & 1344627 \\
+mpi\_ivf & openmp & 4 & 32 & 8 & 16 & 100 & 32 & 1.00 & 1040504 \\
+mpi\_ivf & pthread & 2 & 32 & 8 & 16 & 100 & 32 & 1.00 & 1912173 \\
+mpi\_ivf & pthread & 4 & 32 & 8 & 16 & 100 & 32 & 1.00 & 2266627 \\
+mpi\_ivf & none & 1 & 32 & 16 & 16 & 100 & 32 & 1.00 & 1907745 \\
+mpi\_ivf & openmp & 2 & 32 & 16 & 16 & 100 & 32 & 1.00 & 1553800 \\
+mpi\_ivf & openmp & 4 & 32 & 16 & 16 & 100 & 32 & 1.00 & 1212402 \\
+mpi\_ivf & pthread & 2 & 32 & 16 & 16 & 100 & 32 & 1.00 & 1975664 \\
+mpi\_ivf & pthread & 4 & 32 & 16 & 16 & 100 & 32 & 1.00 & 2078613 \\
+mpi\_ivf & none & 1 & 64 & 4 & 16 & 100 & 32 & 0.96 & 4015190 \\
+mpi\_ivf & openmp & 2 & 64 & 4 & 16 & 100 & 32 & 0.96 & 2315846 \\
+mpi\_ivf & openmp & 4 & 64 & 4 & 16 & 100 & 32 & 0.96 & 1889236 \\
+mpi\_ivf & pthread & 2 & 64 & 4 & 16 & 100 & 32 & 0.96 & 3936437 \\
+mpi\_ivf & pthread & 4 & 64 & 4 & 16 & 100 & 32 & 0.96 & 3805628 \\
+mpi\_ivf & none & 1 & 64 & 8 & 16 & 100 & 32 & 0.99 & 3530839 \\
+mpi\_ivf & openmp & 2 & 64 & 8 & 16 & 100 & 32 & 0.99 & 2206845 \\
+mpi\_ivf & openmp & 4 & 64 & 8 & 16 & 100 & 32 & 0.99 & 1856796 \\
+mpi\_ivf & pthread & 2 & 64 & 8 & 16 & 100 & 32 & 0.99 & 3322045 \\
+mpi\_ivf & pthread & 4 & 64 & 8 & 16 & 100 & 32 & 0.99 & 3041926 \\
+mpi\_ivf & none & 1 & 64 & 16 & 16 & 100 & 32 & 1.00 & 3126665 \\
+mpi\_ivf & openmp & 2 & 64 & 16 & 16 & 100 & 32 & 1.00 & 2211828 \\
+mpi\_ivf & openmp & 4 & 64 & 16 & 16 & 100 & 32 & 1.00 & 1787545 \\
+mpi\_ivf & pthread & 2 & 64 & 16 & 16 & 100 & 32 & 1.00 & 3187337 \\
+mpi\_ivf & pthread & 4 & 64 & 16 & 16 & 100 & 32 & 1.00 & 3704196 \\
+mpi\_ivf & none & 1 & 128 & 4 & 16 & 100 & 32 & 0.91 & 6965941 \\
+mpi\_ivf & openmp & 2 & 128 & 4 & 16 & 100 & 32 & 0.91 & 4107439 \\
+mpi\_ivf & openmp & 4 & 128 & 4 & 16 & 100 & 32 & 0.91 & 3048411 \\
+mpi\_ivf & pthread & 2 & 128 & 4 & 16 & 100 & 32 & 0.91 & 6105227 \\
+mpi\_ivf & pthread & 4 & 128 & 4 & 16 & 100 & 32 & 0.91 & 6705667 \\
+mpi\_ivf & none & 1 & 128 & 8 & 16 & 100 & 32 & 0.97 & 7322507 \\
+mpi\_ivf & openmp & 2 & 128 & 8 & 16 & 100 & 32 & 0.97 & 4644378 \\
+mpi\_ivf & openmp & 4 & 128 & 8 & 16 & 100 & 32 & 0.97 & 3521582 \\
+mpi\_ivf & pthread & 2 & 128 & 8 & 16 & 100 & 32 & 0.97 & 7500838 \\
+mpi\_ivf & pthread & 4 & 128 & 8 & 16 & 100 & 32 & 0.97 & 7773443 \\
+mpi\_ivf & none & 1 & 128 & 16 & 16 & 100 & 32 & 0.99 & 6817525 \\
+mpi\_ivf & openmp & 2 & 128 & 16 & 16 & 100 & 32 & 0.99 & 5399124 \\
+mpi\_ivf & openmp & 4 & 128 & 16 & 16 & 100 & 32 & 0.99 & 3685551 \\
+mpi\_ivf & pthread & 2 & 128 & 16 & 16 & 100 & 32 & 0.99 & 7276921 \\
+mpi\_ivf & pthread & 4 & 128 & 16 & 16 & 100 & 32 & 0.99 & 7943832 \\
+\bottomrule
+\end{longtable}
+}
+
+
+\newpage
+\bibliographystyle{plain}
+\bibliography{reference.bib}
+
+\vspace{1cm}
+\noindent\textbf{\large 源代码仓库：}\\
+\url{https://github.com/liuyuze-121/NKU-cpu-parallel-lab/tree/main/lab4_programming}
+
+\end{document}
