@@ -235,12 +235,12 @@ Flat-SIMD 是 ANNS 中最基础的检索方式——对基向量集合进行全�
 \item \textbf{加速比理论上界：} 各线程计算完全独立，无临界区竞争，理论加速比接近 S(T) = T。实际主要受限于内存带宽和 barrier 同步开销。
 \end{itemize}
 
-\textbf{深入分析：} Flat-SIMD 作为易并行（Embarrassingly Parallel）问题，理论上应接近线性加速。但实验数据显示：
+\textbf{深入分析：} Flat-SIMD 作为易并行问题，在本次 pthread 实测中仍然呈现出接近线性的前半段扩展性，但在 8 线程附近达到最优后开始受平台资源限制：
 
 \begin{enumerate}
-\item \textbf{4 线程为最优节点：} pthread 和 OpenMP 在 4 线程时均达到较高效率（85\%以上）。此时内存带宽尚未饱和，线程间计算负载完全均匀。
-\item \textbf{8 线程后效率骤降：} OpenMP 在 8 线程时加速比达 3.86（效率 48.3\%），pthread 更是降至 2.67（效率 33.4\%）。这是因为 DEEP100K 数据集（100K×96 维）规模使得单次查询的 L2 距离计算量约 19.2M FLOPS，恰好触及单通道内存带宽极限。
-\item \textbf{内存带宽瓶颈：} 每代 SIMD 指令的峰值算力远大于内存带宽（Byte/s），导致计算单元饥饿。16 线程时延迟反而增加，印证了内存带宽竞争导致的 cache coherency 开销。
+\item \textbf{8 线程达到最佳时延：} 平均查询时延从 1 线程的 6567.72\,$\mu$s 降到 8 线程的 2040.90\,$\mu$s，获得 3.22× 加速比。
+\item \textbf{4 线程已有较高效率：} 4 线程时延 2246.42\,$\mu$s，加速比 2.92×，效率约 73\%，说明基于向量块的静态划分在中等线程数下负载很均衡。
+\item \textbf{16 线程略有回退：} 16 线程平均时延反弹到 2284.98\,$\mu$s，表明继续增加线程后，线程创建/合并以及共享内存带宽竞争开始压过额外并行收益。
 \end{enumerate}
 
 \subsubsection{OpenMP 实现}
@@ -296,13 +296,6 @@ Flat-SIMD 是 ANNS 中最基础的检索方式——对基向量集合进行全�
 \end{breakablealgorithm}
 
 \textbf{复杂度分析：} 渐近复杂度与 pthread 相同。主要差异在于 OpenMP 维护线程池，免去 \texttt{pthread\_create}/\texttt{pthread\_join} 开销；\texttt{schedule(dynamic)} 在 Flat 均匀计算量场景下引入了不必要的分发锁，改为 \texttt{schedule(static)} 可消除此开销。
-
-\textbf{深入分析：} OpenMP 在 8 线程时取得最优性能（加速比 3.86），而 pthread 在 4 线程后就开始下降。这说明：
-\begin{enumerate}
-\item \textbf{线程池复用优势：} OpenMP 的隐式线程池避免了 pthread 每轮查询的线程创建/销毁开销，在多轮查询场景下优势明显。
-\item \textbf{动态调度适应性：} 虽然 Flat 计算量完全均匀，但 \texttt{schedule(dynamic)} 的 chunk 分发机制仍优于静态划分——它允许各线程根据实际完成时间动态获取下一块任务，避免了某线程因 cache miss 导致的长尾效应。
-\item \textbf{隐式 barrier 优化：} OpenMP 的隐式 barrier 经过编译器优化，同步开销低于 pthread 的显式 \texttt{pthread\_barrier\_wait}。
-\end{enumerate}
 
 \subsection{PQ-SIMD}
 
@@ -407,78 +400,25 @@ Flat-SIMD 是 ANNS 中最基础的检索方式——对基向量集合进行全�
 \item \textbf{空间复杂度：} O(n·M + M·ksub·dsub)。p 参数增大时堆维护开销从 O(log k) 增至 O(log p)。
 \end{itemize}
 
-\textbf{深入分析：} PQ 的并行化收益远低于 Flat，根源在于其 memory-bound 特性：
+\textbf{深入分析：} 按参数组合实际测试后，pthread PQ 的规律与理论预期一致：
 
 \begin{enumerate}
-\item \textbf{随机访存瓶颈：} 每条基向量的查表需访问 M=8 个 LUT 条目，而 LUT 分布在一个 M×256 的表中。线程访问 LUT 时，由于不同线程处理不同基向量，其 LUT 访问序列完全不同，导致 cache 失效。
-\item \textbf{内存带宽竞争：} 4 线程时加速比仅 1.39-1.51，16 线程时加速比 < 1。这表明 4 线程时已接近内存带宽极限。
-\item \textbf{p 参数的权衡：} p 从 1000 增至 5000 时，召回率从 0.994 提升至 0.9999，但延迟增加约 2 倍。这是因为更大的候选集需要更频繁的堆调整（O(log p)），且最终归并 T 路堆的开销也更大。
+\item \textbf{最优线程数稳定在 4 附近：} 无论是 M=8 还是 M=16，大多数配置在 4 线程达到最低时延，例如 M=8,p=1000 时为 1628.70\,$\mu$s，M=16,p=1000 时为 2074.47\,$\mu$s。
+\item \textbf{p 增大主要提升召回率，但显著增加时延：} 以 M=8 为例，p 从 1000 增至 5000，Recall@10 从 0.994501 升至 0.99985，而 1 线程时延从 2617.92\,$\mu$s 增至 5775.43\,$\mu$s。
+\item \textbf{M=16 进一步提升精度：} 在 p=2000 时，M=16 已达到 0.99995 的平均召回率，但最优 4 线程时延仍为 3167.08\,$\mu$s，明显慢于 M=8,p=1000 的低时延配置。
 \end{enumerate}
 
 \subsubsection{OpenMP 实现}
 
 \textbf{并行策略：} LUT 构建阶段使用 \texttt{schedule(static)} 按子空间均分，查表累加阶段使用 \texttt{schedule(dynamic, chunk\_size)} 按基向量范围动态调度以缓解内存带宽竞争导致的计算时间不均。
 
-\textbf{流程图：}
+\textbf{实测分析：} OpenMP PQ 在本地环境下没有表现出 pthread 那样稳定的收益，反而暴露出实现层面的额外开销：
 
-\begin{figure}[htbp]
-\centering
-\begin{tikzpicture}[node distance=1cm, minimum height=0.5cm]
-\node (parallel) [rectangle, draw] {\#pragma omp parallel};
-\node (phase1) [rectangle, draw, below of=parallel, yshift=-0.3cm] {\textbf{阶段一:} \#pragma omp for schedule(static)};
-\node (lut) [rectangle, draw, below of=phase1, yshift=-0.3cm] {线程分配: LUT[m][*]};
-\node (barrier1) [rectangle, draw, below of=lut, yshift=-0.3cm] {隐式 barrier};
-\node (phase2) [rectangle, draw, below of=barrier1, yshift=-0.3cm] {\textbf{阶段二:} \#pragma omp for schedule(dynamic, 2000)};
-\node (scan) [rectangle, draw, below of=phase2, yshift=-0.3cm] {查表累加 + 维护 top-p};
-\node (barrier2) [rectangle, draw, below of=scan, yshift=-0.3cm] {隐式 barrier};
-\node (merge) [rectangle, draw, below of=barrier2, yshift=-0.3cm] {主线程: T路归并 → top-k};
-
-\draw[->] (parallel) -- (phase1);
-\draw[->] (phase1) -- (lut);
-\draw[->] (lut) -- (barrier1);
-\draw[->] (barrier1) -- (phase2);
-\draw[->] (phase2) -- (scan);
-\draw[->] (scan) -- (barrier2);
-\draw[->] (barrier2) -- (merge);
-\end{tikzpicture}
-\caption{OpenMP PQ-SIMD 流程图}
-\end{figure}
-
-\textbf{伪代码：}
-
-\begin{breakablealgorithm}
-\caption{pq\_search\_omp}
-\begin{algorithmic}[1]
-\Require codes[n][M], centroids[M][ksub][dsub], norms[n], query[d], k, p
-\Ensure top-k results
-\State T = omp\_get\_max\_threads()
-\State 分配 lut[M][ksub], 分配 local\_results[T] (每个为容量 p 的小顶堆)
-\State q\_norm = dot\_product\_neon(query, query, d)
-\State \textbf{\#pragma omp parallel}
-\State[1] tid = omp\_get\_thread\_num()
-\State[1] 清空 local\_results[tid]
-\State[1] \textbf{// 阶段一：LUT 构建}
-\State[1] \textbf{\#pragma omp for schedule(static)}
-\State[1] \For{m = 0 to M-1}
-\State[2] query\_sub = query + m*dsub
-\State[2] \For{ki = 0 to ksub-1}
-\State[3] lut[m][ki] = l2\_distance\_neon(query\_sub, \&centroids[m][ki][0], dsub)
-\State[2] \EndFor
-\State[1] \EndFor
-\State[1] \textbf{// 阶段二：查表累加}
-\State[1] \textbf{\#pragma omp for schedule(dynamic, 2000)}
-\State[1] \For{i = 0 to n-1}
-\State[2] dist = 0
-\State[2] \For{m = 0 to M-1}
-\State[3] dist += lut[m][codes[i*M + m]]
-\State[2] \EndFor
-\State[2] ip = (q\_norm + norms[i] - dist) / 2
-\State[2] 维护 local\_results[tid] 为大小为 p 的小顶堆
-\State[1] \EndFor
-\State global\_heap = merge\_k\_way(local\_results[0..T-1], k)
-\State \Return global\_heap
-\end{algorithmic}
-\end{breakablealgorithm}
+\begin{enumerate}
+\item \textbf{4 线程不一定更快：} 例如 M=8,p=1000 时，1 线程时延为 2335.91\,$\mu$s，但 4 线程上升到 4708.48\,$\mu$s，说明并行化后的局部候选维护与合并成本超过了收益。
+\item \textbf{M=16 更适合作为 OpenMP 版本的代表性配置：} M=16,p=1000,4 线程达到 Recall@10=0.99995、时延 1772.34\,$\mu$s，既保持高召回，也优于 Flat 的 4 线程结果。
+\item \textbf{p 增大后时延近似单调上升：} M=8 时 p 从 1000 提高到 5000，时延由 4708.48\,$\mu$s 增至 4757.53\,$\mu$s，而召回率才从 0.993701 升至 0.999850，性价比不高。
+\end{enumerate}
 
 \subsection{IVF-SIMD}
 
@@ -573,6 +513,14 @@ IVF 的查询过程分为\textbf{粗排（Coarse Search）}和\textbf{精排（F
 \end{algorithmic}
 \end{breakablealgorithm}
 
+\textbf{深入分析：} pthread IVF 在本次测试中表现出非常清晰的 Recall-Latency 权衡：
+
+\begin{enumerate}
+\item \textbf{nprobe 决定召回率主趋势：} 例如 nlist=100 时，nprobe 从 1 增至 32，Recall@10 从 0.636150 提升到 0.997750，对应 1 线程时延也从 441.78\,$\mu$s 增至 6818.21\,$\mu$s。
+\item \textbf{线程并行对候选精排帮助明显：} 在 nlist=256,nprobe=16 下，1 线程时延为 1666.47\,$\mu$s，4 线程降到 655.12\,$\mu$s，加速比约 2.54×。
+\item \textbf{大 nlist 适合低时延场景：} 当 nlist=512,nprobe=16 时，4 线程平均时延仅 523.14\,$\mu$s，Recall@10 为 0.951102；若追求更高召回，可改为 nprobe=32，时延 794.11\,$\mu$s、Recall@10 提升到 0.982252。
+\end{enumerate}
+
 \subsubsection{OpenMP 实现}
 
 \textbf{流程图：}
@@ -597,6 +545,14 @@ IVF 的查询过程分为\textbf{粗排（Coarse Search）}和\textbf{精排（F
 \end{tikzpicture}
 \caption{OpenMP IVF-SIMD 流程图}
 \end{figure}
+
+\textbf{实测分析：} OpenMP IVF 是本地测试中表现最稳健的方案，并且相对 pthread 版本在同等召回附近进一步降低了时延：
+
+\begin{enumerate}
+\item \textbf{低时延配置非常突出：} nlist=512,nprobe=16,4 线程达到 Recall@10=0.951102、Latency=269.57\,$\mu$s，显著优于 pthread 同配置的 523.14\,$\mu$s。
+\item \textbf{高召回配置也保持领先：} 结合真实提交结果，nlist=256,nprobe=32,4 线程达到 Recall@10=0.990501、Latency=928.419\,$\mu$s，在接近 0.99 召回率时仍是本次 OpenMP 最均衡配置。
+\item \textbf{nprobe 仍是最直接的精度旋钮：} 以 nlist=100 为例，4 线程下 nprobe 从 1、4、8、16、32 变化时，召回率从 0.636150 提升到 0.997700，而时延从 89.78\,$\mu$s 提升到 1388.42\,$\mu$s，权衡关系清晰。
+\end{enumerate}
 
 \subsection{IVF-PQ-SIMD}
 
@@ -639,6 +595,24 @@ IVF-PQ 是 IVF 索引结构与 PQ 编码技术的组合：IVF 负责缩小搜索
 \caption{pthread IVF-PQ-SIMD 流程图}
 \end{figure}
 
+\textbf{深入分析：} 本次只对 pthread 版本做范围内测试，IVF-PQ 的结果说明两级近似能进一步降低时延，但召回率对参数更敏感：
+
+\begin{enumerate}
+\item \textbf{低 nprobe 配置适合极低时延：} 例如 nlist=100,M=8,nprobe=1,p=1000 时，1 线程平均时延为 623.39\,$\mu$s，Recall@10 为 0.635700。
+\item \textbf{提高 nprobe 可显著改善精度：} 同一组参数下，nprobe=4 时 Recall@10 提升到 0.904653，时延增至 1424.16\,$\mu$s。
+\item \textbf{IVF-PQ 更适合大规模数据的空间受限场景：} 在 DEEP100K 规模上，IVF-SIMD 往往能在相近召回下给出更好的时延，因此最终提交配置没有选择 IVF-PQ。
+\end{enumerate}
+
+\subsubsection{OpenMP 实现}
+
+\textbf{实测分析：} OpenMP IVF-PQ 仅对代表性组合进行了本地测试，结果与 pthread 版本趋势一致，但在当前规模下仍未超过纯 IVF：
+
+\begin{enumerate}
+\item \textbf{低 nprobe 时延较低：} nlist=100,M=8,nprobe=1,p=1000,1 线程时延为 470.04\,$\mu$s，Recall@10=0.635700。
+\item \textbf{提高 nprobe 后精度上升但仍弱于 IVF：} nprobe=4 时 Recall@10 提升到 0.904653，时延升至 762.69\,$\mu$s，仍落后于 OpenMP IVF 在相近延迟区间的表现。
+\item \textbf{因此未作为最终提交候选：} 在当前 DEEP100K 场景下，OpenMP IVF 的召回-时延权衡更直接、也更稳定。
+\end{enumerate}
+
 \subsection{HNSW 图索引}
 
 \subsubsection{算法原理}
@@ -650,6 +624,8 @@ HNSW（Hierarchical Navigable Small World）是当前工业界综合性能最优
 \textbf{HNSW 并行化的核心困境：} 图搜索具有天然的\textbf{顺序依赖性}——每一步扩展哪个节点取决于上一步的计算结果。目前可行的并行策略集中于 Query 级并行（不同线程处理不同查询）。
 
 \subsubsection{pthread 实现}
+
+\textbf{并行策略：} 构图阶段直接调用 hnswlib::HierarchicalNSW 串行 addPoint（hnswlib 内部已处理图结构正确性）；批量查询阶段采用 Query 级并行，将 N 条 query 按 chunk 划分给 T 个 pthread，每个线程独立执行 hnswlib::searchKnn。
 
 \textbf{流程图：}
 
@@ -680,32 +656,112 @@ HNSW（Hierarchical Navigable Small World）是当前工业界综合性能最优
 \caption{pthread HNSW Query级并行流程图}
 \end{figure}
 
+\textbf{伪代码：}
+
+\begin{breakablealgorithm}
+\caption{hnsw\_pthread\_batch\_search}
+\begin{algorithmic}[1]
+\Require base[n][d], queries[N][d], k, num\_threads, hnswlib::InnerProductSpace space, hnswlib::HierarchicalNSW$<$float$>$ index (已 build)
+\Ensure top-k results for each query
+\State space.reset(new InnerProductSpace(d))
+\State index.reset(new HierarchicalNSW$<$float$>$(space.get(), n, M, efConstruction))
+\State index.setEf(ef)
+\For{i = 0 to n-1}
+\State index.addPoint(base + i*d, i)  \Comment{构图阶段：串行 addPoint}
+\EndFor
+\Function{search\_single}{q}
+\State pq = index.searchKnn(q, k)
+\State res = empty max-heap
+\While{!pq.empty()}
+\State (dist, id) = pq.pop()
+\State res.push(\{dist, id\})
+\EndWhile
+\State \Return res
+\EndFunction
+\State chunk = N / num\_threads
+\State 创建 threads[0..T-1] 与 args[0..T-1]
+\For{t = 0 to num\_threads-1}
+\State args[t] = \{this, queries, k, results, t*chunk, (t+1)*chunk\}
+\State pthread\_create(\&threads[t], batch\_worker, \&args[t])
+\EndFor
+\For{t = 0 to num\_threads-1}
+\State pthread\_join(threads[t], NULL)
+\EndFor
+\State \Return results[0..N-1]
+\Function{batch\_worker}{arg}
+\For{i = arg.start to arg.end-1}
+\State results[i] = search\_single(queries[i])
+\EndFor
+\State \Return NULL
+\EndFunction
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\textbf{复杂度分析：}
+\begin{itemize}
+\item \textbf{构图：} O(n·log(n))，hnswlib 内部完成，多线程加速主要在 build 的 addPoint 并行上。
+\item \textbf{单查询：} O(log(n)·ef·d)，由 hnswlib::searchKnn 实现。
+\item \textbf{批量查询并行：} N 个 query 总耗时 T = $\sum$per-query 耗时 / T 路并行近似为 T/N，N 越大加速越接近 T。
+\end{itemize}
+
+\textbf{深入分析：} pthread HNSW 选取了 M \in \{16,32\}、efConstruction=150、ef \in \{10,20,50,100\}、线程数 \in \{1,4\} 的代表性组合进行测试。详细的 16 组 Recall@10 与时延见第 \ref{sec:hnsw-perf} 节 ``HNSW 图索引性能分析''，整体趋势表明：
+
+\begin{enumerate}
+\item \textbf{ef 是主要精度控制参数：} ef 增大时召回率上升、时延同步上升。
+\item \textbf{Query 级并行非常有效：} 对 HNSW 这类单查询强顺序依赖算法，跨查询并行比在单查询内部并行更自然。
+\item \textbf{若追求提交的稳定性与可复现性，IVF 更合适：} HNSW 在本实现中还包含较重的图构建阶段，测试与正式提交时总耗时更敏感，因此本次未将其作为最终保留配置。
+\end{enumerate}
+
 \subsubsection{OpenMP 实现}
+
+\textbf{并行策略：} 与 pthread 同样的 Query 级并行思路，但通过 OpenMP 的 \texttt{\#pragma omp parallel for schedule(dynamic, 1)} 把 query 直接分发给线程，线程池复用、负载按动态调度均衡。
 
 \textbf{流程图：}
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[node distance=0.8cm, minimum height=0.4cm]
-\node (parallel) [rectangle, draw] {\#pragma omp parallel for schedule(dynamic, 10)};
-\node (w0) [rectangle, draw, below of=parallel, yshift=-0.3cm, xshift=-2cm] {线程0: q=0,10,20,...};
-\node (w1) [rectangle, draw, below of=parallel, yshift=-0.3cm, xshift=0cm] {线程1: q=1,11,21,...};
-\node (w2) [rectangle, draw, below of=parallel, yshift=-0.3cm, xshift=2cm] {线程2/3: ...};
-\node (search) [rectangle, draw, below of=w1, yshift=-0.8cm] {HNSW单查询: 层级导航 + Layer0搜索};
-\node (barrier) [rectangle, draw, below of=search, yshift=-0.3cm] {隐式 barrier};
-\node (end) [rectangle, draw, below of=barrier, yshift=-0.3cm] {收集results → 输出};
+\begin{tikzpicture}[node distance=0.8cm, minimum height=0.5cm]
+\node (start) [rectangle, draw] {批量查询开始};
+\node (parallel) [rectangle, draw, below of=start] {\#pragma omp parallel};
+\node (for1) [rectangle, draw, below of=parallel, yshift=-0.4cm] {\#pragma omp for schedule(dynamic, 1)};
+\node (simd) [rectangle, draw, below of=for1, yshift=-0.4cm] {tid: index.searchKnn(query, k)};
+\node (end) [rectangle, draw, below of=simd, yshift=-0.4cm] {隐式 barrier};
+\node (out) [rectangle, draw, below of=end, yshift=-0.4cm] {主线程: 收集results};
 
-\draw[->] (parallel) -- (w0);
-\draw[->] (parallel) -- (w1);
-\draw[->] (parallel) -- (w2);
-\draw[->] (w0) -- (search);
-\draw[->] (w1) -- (search);
-\draw[->] (w2) -- (search);
-\draw[->] (search) -- (barrier);
-\draw[->] (barrier) -- (end);
+\draw[->] (start) -- (parallel);
+\draw[->] (parallel) -- (for1);
+\draw[->] (for1) -- (simd);
+\draw[->] (simd) -- (end);
+\draw[->] (end) -- (out);
 \end{tikzpicture}
 \caption{OpenMP HNSW Query级并行流程图}
 \end{figure}
+
+\textbf{伪代码：}
+
+\begin{breakablealgorithm}
+\caption{hnsw\_omp\_batch\_search}
+\begin{algorithmic}[1]
+\Require base[n][d], queries[N][d], k, hnswlib::InnerProductSpace space, hnswlib::HierarchicalNSW$<$float$>$ index (已 build)
+\Ensure top-k results for each query
+\State omp\_set\_num\_threads(T)
+\State results[N] 初始化为 max-heap 数组
+\State \textbf{\#pragma omp parallel}
+\State[1] \textbf{\#pragma omp for schedule(dynamic, 1)}
+\State[2] \For{i = 0 to N-1}
+\State[3] pq = index.searchKnn(queries[i], k)
+\State[3] \While{!pq.empty()}
+\State[4] (dist, id) = pq.pop()
+\State[4] results[i].push(\{dist, id\})
+\State[3] \EndWhile
+\State[2] \EndFor
+\State \Return results[0..N-1]
+\end{algorithmic}
+\end{breakablealgorithm}
+
+\textbf{复杂度分析：} 与 pthread 相同。OpenMP 通过动态调度避免某条 query 因 ef 大、图路径长而被串行调度阻塞，但单 query 内部仍由 hnswlib 顺序扩展。
+
+\textbf{实测分析：} OpenMP HNSW 基于 hnswlib::HierarchicalNSW 基础图索引实现，构图与查询均由经工业验证的基础图索引完成，多线程 OpenMP 仅用于 query 级的批量搜索并行，本地测试稳定可运行。详细的 M \in \{16,32\}、efConstruction=150、ef \in \{10,20,50,100\}、线程数 \in \{1,4\} 共 16 组配置下的 Recall@10 与时延请见第 \ref{sec:hnsw-perf} 节 ``HNSW 图索引性能分析''。综合而言，OpenMP HNSW 在 M=32,ef=100,4T 下能达到 Recall@10=0.995601、Latency=178\,$\mu$s，是高召回 + 极低时延的潜在替代方案；但由于本次实验范围内 HNSW 仍作为参考配置，真实提交仍以 OpenMP IVF 为准。
 
 \section{实验参数配置}
 
@@ -716,13 +772,13 @@ HNSW（Hierarchical Navigable Small World）是当前工业界综合性能最优
 M（子向量数）：8, 16；ksub（聚类数）：256；p（候选集大小）：1000, 2000, 5000；线程数：1, 2, 4, 8, 16
 
 \subsection{IVF-SIMD}
-nlist（簇数）：100, 256, 512；nprobe（探测数）：1, 4, 8, 16, 32；线程数：1, 2, 4, 8, 16
+nlist（簇数）：100, 256, 512；nprobe（探测数）：1, 4, 8, 16, 32；线程数：1, 4
 
 \subsection{IVF-PQ-SIMD}
-nlist：100, 256；M：8, 16；ksub：256；nprobe：1, 4, 8, 16；p：1000, 2000；线程数：1, 2, 4, 8, 16
+nlist：100, 256；M：8, 16；ksub：256；nprobe：1, 4, 8, 16；p：1000；线程数：1, 4
 
 \subsection{HNSW}
-M：16, 32；efConstruction：100, 150, 200；ef：10, 20, 50, 100；线程数：1, 2, 4, 8, 16
+M：16, 32；efConstruction：150；ef：10, 20, 50, 100；线程数：1, 4
 
 \section{实验结果与分析}
 
@@ -737,36 +793,36 @@ M：16, 32；efConstruction：100, 150, 200；ef：10, 20, 50, 100；线程数�
 \toprule
 线程数 & Latency (μs) & 加速比 & 效率 \\
 \midrule
-1 & 15648020 & 1.00 & 100\% \\
-2 & 8057208 & 1.94 & 97.0\% \\
-4 & 4599653 & 3.40 & 85.0\% \\
-8 & 5858659 & 2.67 & 33.4\% \\
-16 & 6797089 & 2.30 & 14.4\% \\
+1 & 6567.72 & 1.00 & 100\% \\
+2 & 4050.93 & 1.62 & 81.1\% \\
+4 & 2246.42 & 2.92 & 73.1\% \\
+8 & 2040.90 & 3.22 & 40.2\% \\
+16 & 2284.98 & 2.87 & 17.9\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{分析：} pthread 实现使用静态线程池和 barrier 同步，线程创建开销较低，但同步开销随线程数增加而增大。4 线程时达到最优加速比 3.40 倍，16线程时效率大幅下降，主要因为内存带宽成为瓶颈。
+\textbf{分析：} pthread Flat 在当前测试环境下的最优点出现在 8 线程，说明查询阶段的并行收益可以覆盖线程管理开销；但 16 线程开始回退，显示内存带宽和线程合并已成为瓶颈。
 
 \subsubsection{OpenMP 实现结果}
 
 \begin{table}[htbp]
 \centering
 \caption{OpenMP Flat-SIMD 加速比分析}
-\begin{tabular}{ccccc}
+\begin{tabular}{cccc}
 \toprule
-线程数 & Latency (μs) & 加速比 & 效率 & Schedule 策略 \\
+线程数 & Latency (μs) & 加速比 & 效率 \\
 \midrule
-1 & 11703534 & 1.00 & 100\% & - \\
-2 & 6090692 & 1.92 & 96.0\% & dynamic \\
-4 & 3409970 & 3.43 & 85.8\% & dynamic \\
-8 & 3027913 & 3.86 & 48.3\% & dynamic \\
-16 & 3962374 & 2.95 & 18.4\% & dynamic \\
+1 & 4751.36 & 1.00 & 100\% \\
+2 & 2790.79 & 1.70 & 85.1\% \\
+4 & 1929.73 & 2.46 & 61.5\% \\
+8 & 1470.77 & 3.23 & 40.4\% \\
+16 & 1621.75 & 2.93 & 18.3\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{分析：} OpenMP 自动处理线程管理，代码更简洁。使用 \texttt{schedule(dynamic)} 策略实现负载均衡。8线程时达到最优加速比 3.86 倍，之后性能下降是因为内存带宽饱和。
+\textbf{分析：} OpenMP Flat 同样在 8 线程达到最优，平均时延 1470.77\,$\mu$s，优于 pthread 的 2040.90\,$\mu$s；这说明在线程池复用的前提下，OpenMP 对 Flat 这类规则数据并行任务具有更低的线程管理成本。
 
 \subsection{PQ-SIMD 性能分析}
 
@@ -774,517 +830,501 @@ M：16, 32；efConstruction：100, 150, 200；ef：10, 20, 50, 100；线程数�
 
 \begin{table}[htbp]
 \centering
-\caption{pthread PQ-SIMD 性能对比（M=8，p=1000）}
-\begin{tabular}{ccc}
+\caption{pthread PQ-SIMD 代表性结果}
+\begin{tabular}{ccccc}
 \toprule
-线程数 & Latency (μs) & 加速比 \\
+M & p & 线程数 & Recall@10 & Latency (μs) \\
 \midrule
-1 & 5248617 & 1.00 \\
-4 & 3782273 & 1.39 \\
-16 & 9839591 & 0.53 \\
+8 & 1000 & 1 & 0.994501 & 2617.92 \\
+8 & 1000 & 4 & 0.994501 & 1628.70 \\
+8 & 2000 & 4 & 0.998850 & 2645.74 \\
+8 & 5000 & 4 & 0.999850 & 5529.85 \\
+16 & 1000 & 4 & 0.999850 & 2074.47 \\
+16 & 2000 & 4 & 0.999950 & 3167.08 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{分析：} PQ 的查表累加阶段受内存带宽限制，加速比随线程数增加趋于饱和甚至下降。16线程时延迟反而增加，说明内存带宽竞争严重。
+\textbf{分析：} PQ 并行化后能明显降低查询时延，但最优线程数并没有继续扩展到 8 或 16 线程；在保持高召回时，M 与 p 的增加会带来近乎单调的时延增长，因此更适合作为压缩检索而非本次的主提交方案。
+
+\subsubsection{OpenMP 实现结果}
+
+\begin{table}[htbp]
+\centering
+\caption{OpenMP PQ-SIMD 代表性结果}
+\begin{tabular}{ccccc}
+\toprule
+M & p & 线程数 & Recall@10 & Latency (μs) \\
+\midrule
+8 & 1000 & 1 & 0.994501 & 2335.91 \\
+8 & 1000 & 4 & 0.993701 & 4708.48 \\
+8 & 2000 & 4 & 0.999050 & 3237.90 \\
+8 & 5000 & 4 & 0.999850 & 4757.53 \\
+16 & 1000 & 4 & 0.999950 & 1772.34 \\
+16 & 2000 & 4 & 0.999950 & 2762.72 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：} OpenMP PQ 的最优点出现在 M=16,p=1000,4 线程；相比之下，M=8 配置在 4 线程下反而变慢，说明当前实现中并行候选维护和最终重排的开销对小 M 配置影响更大。
 
 \subsection{IVF-SIMD 性能分析}
 
 \begin{table}[htbp]
 \centering
-\caption{OpenMP IVF-SIMD nprobe参数影响（线程数=4，nlist=100）}
-\begin{tabular}{ccc}
+\caption{pthread IVF-SIMD 参数影响}
+\begin{tabular}{ccccc}
 \toprule
-nprobe & Recall@10 & Latency (μs) \\
+nlist & nprobe & 线程数 & Recall@10 & Latency (μs) \\
 \midrule
-10 & 0.9731 & 2029003 \\
-20 & 0.9922 & 3589165 \\
-50 & 0.9996 & 7671441 \\
+100 & 8 & 4 & 0.962352 & 819.19 \\
+100 & 16 & 4 & 0.988601 & 1358.25 \\
+256 & 16 & 4 & 0.971252 & 655.12 \\
+256 & 32 & 4 & 0.990251 & 1290.95 \\
+512 & 16 & 4 & 0.951102 & 523.14 \\
+512 & 32 & 4 & 0.982252 & 794.11 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{深入分析：} IVF 通过粗排剪枝大幅缩减候选集，其性能特性与 Flat 有显著差异：
+\textbf{分析：} IVF 是本次 pthread 任务中最均衡的方案：如果以 Recall@10 约 0.95 为目标，nlist=512,nprobe=16,threads=4 的平均时延仅 523.14\,$\mu$s；若进一步追求接近 0.99 的精度，则最终真实提交配置 nlist=256,nprobe=32,threads=4 在 1290.95\,$\mu$s 下达到 0.990251，仍然是本次的主提交方案。
 
-\begin{enumerate}
-\item \textbf{Recall-Latency 权衡：} nprobe=10 时召回率 0.973，延迟 2.0ms；nprobe=50 时召回率提升至 0.9996，但延迟增至 7.7ms。这是因为精排候选集从约 10,000 增至 50,000，距离计算量增加 5 倍。
-\item \textbf{并行效率高于 Flat：} 4 线程时 IVF 加速比达 3.19（OpenMP），高于 Flat 的 3.43？这实际是因为 IVF 的候选集更小，内存带宽压力更小，更容易实现高效并行。
-\item \textbf{nlist 的影响：} nlist=500 时候选集更小（延迟更低），但召回率也更低。这是因为更多的簇意味着每个簇平均向量数减少，粗排选中的簇可能遗漏更多近邻。
-\end{enumerate}
+\subsubsection{OpenMP 实现结果}
+
+\begin{table}[htbp]
+\centering
+\caption{OpenMP IVF-SIMD 参数影响}
+\begin{tabular}{ccccc}
+\toprule
+nlist & nprobe & 线程数 & Recall@10 & Latency (μs) \\
+\midrule
+100 & 1 & 1 & 0.636150 & 270.76 \\
+100 & 4 & 1 & 0.905853 & 855.92 \\
+100 & 8 & 1 & 0.962352 & 1706.71 \\
+100 & 16 & 1 & 0.988601 & 2812.50 \\
+100 & 32 & 1 & 0.997750 & 4841.97 \\
+100 & 1 & 4 & 0.636150 & 89.78 \\
+100 & 4 & 4 & 0.905853 & 238.36 \\
+100 & 8 & 4 & 0.962302 & 511.91 \\
+100 & 16 & 4 & 0.988551 & 713.08 \\
+100 & 32 & 4 & 0.997700 & 1388.42 \\
+256 & 16 & 4 & 0.971252 & 393.47 \\
+256 & 32 & 4 & 0.990501 & 928.419 \\
+512 & 16 & 4 & 0.951102 & 269.57 \\
+512 & 32 & 4 & 0.982252 & 436.79 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：} OpenMP IVF 的整体趋势与 pthread 一致，但在本地环境上几乎所有代表性配置都更快。若追求高召回，nlist=256,nprobe=32,4T 是最均衡方案；若追求极低时延，则 nlist=512,nprobe=16,4T 的 269.57\,$\mu$s 更具吸引力。
 
 \subsection{IVF-PQ-SIMD 性能分析}
 
 \begin{table}[htbp]
 \centering
-\caption{IVF-PQ-SIMD 瓶颈分析（线程数=4）}
-\begin{tabular}{ccc}
+\caption{pthread IVF-PQ-SIMD 代表性结果}
+\begin{tabular}{cccccc}
 \toprule
-阶段 & 耗时占比 & 瓶颈类型 \\
+nlist & M & nprobe & p & Recall@10 & Latency (μs) \\
 \midrule
-粗排 & ~5\% & Compute-bound \\
-LUT 构建 & ~1\% & Compute-bound \\
-查表累加 & ~85\% & Memory-bound \\
-重排 & ~9\% & Compute-bound \\
+100 & 8 & 1 & 1000 & 0.635700 & 623.39 \\
+100 & 8 & 4 & 1000 & 0.904653 & 1424.16 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{深入分析：} IVF-PQ 结合了 IVF 的剪枝和 PQ 的压缩，其性能瓶颈呈现复杂特性：
+\textbf{分析：} 在当前数据规模和实现方式下，IVF-PQ 的时延优势并没有在高召回区间转化为更优的整体表现；相比之下，纯 IVF 更容易通过调 nprobe 获得稳定且更高的召回率。
 
-\begin{enumerate}
-\item \textbf{查表累加的内存访问模式：} IVF-PQ 的查表累加需要随机访问 PQ codes（uint8 数组）和 LUT（float 数组）。与纯 PQ 不同，IVF 的展平策略使得候选向量在内存中连续排列，但 PQ code 的随机访问仍导致高 cache miss 率。
-\item \textbf{重排阶段的必要性：} top-p 候选（通常 p=1000-5000）需要用原始浮点向量重新计算精确距离。虽然重排仅占总耗时 9\%，但它是保证高召回率的关键——PQ 的有损编码会导致距离估算误差。
-\item \textbf{多线程扩展性差：} 8-16 线程时加速比急剧下降（部分情况下 < 1），因为查表累加已完全受内存带宽限制，再增加线程只会加剧竞争。
-\end{enumerate}
-
-\subsection{HNSW 性能分析}
+\subsubsection{OpenMP 实现结果}
 
 \begin{table}[htbp]
 \centering
-\caption{HNSW 并行策略对比（ef=50）}
-\begin{tabular}{ccc}
+\caption{OpenMP IVF-PQ-SIMD 代表性结果}
+\begin{tabular}{ccccccc}
 \toprule
-策略 & Latency (μs) & 加速比 \\
+线程数 & nlist & M & nprobe & p & Recall@10 & Latency (μs) \\
 \midrule
-串行 & 852759 & 1.00 \\
-Query 级并行（4线程） & 235112 & 3.63 \\
-Query 级并行（16线程） & 132734 & 6.43 \\
+1 & 100 & 8 & 1 & 1000 & 0.635700 & 470.04 \\
+1 & 100 & 8 & 4 & 1000 & 0.904653 & 762.69 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{深入分析：} HNSW 的图遍历特性使其并行化策略与向量索引类算法完全不同：
+\textbf{分析：} OpenMP IVF-PQ 在本地测试中较 pthread 版本更快，但由于召回率仍明显受 nprobe 约束，而且高召回区间没有超过纯 IVF，因此未进入最终提交候选。
 
+\subsection{HNSW 图索引性能分析}
+\label{sec:hnsw-perf}
+
+基于 hnswlib::HierarchicalNSW 基础图索引并加入 query 级并行后，pthread 和 OpenMP 两版 HNSW 都已能在本地稳定运行。下面表格统一列出 M \in \{16,32\}、efConstruction=150、ef \in \{10,20,50,100\}、线程数 \in \{1,4\} 共 16 组配置下的 Recall@10 与平均时延（按 2000 条本地 query 的 batch-search 总耗时除以查询数得到）。括号中分别为单线程时延 / 4 线程时延的加速比。
+
+\subsubsection{pthread HNSW}
+
+\begin{table}[htbp]
+\centering
+\caption{pthread HNSW（基于 hnswlib）参数影响}
+\begin{tabular}{cccccc}
+\toprule
+M & ef & 1T Recall@10 & 1T Latency ($\mu$s) & 4T Recall@10 & 4T Latency ($\mu$s) \\
+\midrule
+16 & 10  & 0.792253 & 105  & 0.792253 & 30  \\
+16 & 20  & 0.899704 & 174  & 0.899704 & 42  \\
+16 & 50  & 0.970603 & 377  & 0.970603 & 88  \\
+16 & 100 & 0.991351 & 620  & 0.991351 & 157 \\
+32 & 10  & 0.840704 & 156  & 0.840704 & 38  \\
+32 & 20  & 0.932105 & 226  & 0.932105 & 61  \\
+32 & 50  & 0.983102 & 433  & 0.983102 & 113 \\
+32 & 100 & 0.995601 & 744  & 0.995601 & 202 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：}
 \begin{enumerate}
-\item \textbf{Query 级并行是唯一选择：} HNSW 的搜索过程具有严格的顺序依赖性——每步选择哪个邻居节点取决于上一步的计算结果。单个查询内部无法并行化，只能让不同线程处理不同查询。
-\item \textbf{pthread 的优势：} 在 16 线程时，pthread 达到 6.43× 加速比，而 OpenMP 仅有 2.65×。这因为 pthread 能更好地控制线程亲和性和 cache 共享——相邻查询的搜索路径可能有重叠，共享图结构的 cache 命中率更高。
-\item \textbf{内存带宽利用充分：} HNSW 的搜索范围远小于 Flat（约 O(log n) 个节点 vs n），内存访问量小，因此 8 线程时 OpenMP 仍能保持较高效率（4.01×）。
-\item \textbf{ef 参数的权衡：} ef 从 50 增至 200 时，召回率从 0.97 提升至 0.998，但延迟增加约 4 倍。更大的 ef 意味着更大的候选集，搜索树更深，但召回率提升显著。
+\item \textbf{ef 直接控制召回率曲线：} pthread HNSW 在 ef \in \{10,20,50,100\} 上得到与 hnswlib 文档一致的单调上升曲线：从 ef=10 的 0.79 左右爬升到 ef=100 的 0.99 以上，说明 hnswlib 基础图索引在 efConstruction=150、setEf(ef) 配合下能为不同召回需求提供稳定的精度调控。
+\item \textbf{M 主要影响图密度与上限：} 在 efConstruction=150、ef=100 的高召回场景下，M=32 将 1T Recall@10 从 M=16 的 0.991351 提升到 0.995601，4T 下同步从 0.991351 提升到 0.995601，符合 M 越大、近邻图越密、上界召回率越高的预期。
+\item \textbf{Query 级 pthread 并行加速非常显著：} 在 8 组配置下，4 线程相对 1 线程的加速比均在 3.5$\times$--4.3$\times$ 之间（105/30$\approx$3.5$\times$，174/42$\approx$4.1$\times$，377/88$\approx$4.3$\times$，620/157$\approx$3.9$\times$，156/38$\approx$4.1$\times$，226/61$\approx$3.7$\times$，433/113$\approx$3.8$\times$，744/202$\approx$3.7$\times$），这与 ``单查询强顺序依赖 + 跨查询可独立调度'' 的算法特性高度契合。
+\item \textbf{最终未选入提交：} hnswlib 基础图索引下 HNSW 单批 query 在 4T 下最快可达 30\,$\mu$s 量级，但图构建阶段仍然耗时数十秒（与 hnswlib 默认行为一致），因此在以 ``真实提交可复现性'' 为首要约束的本次实验中，IVF 仍是最稳定的提交配置，HNSW 仅作为参考对照。
+\end{enumerate}
+
+\subsubsection{OpenMP HNSW}
+
+\begin{table}[htbp]
+\centering
+\caption{OpenMP HNSW（基于 hnswlib）参数影响}
+\begin{tabular}{cccccc}
+\toprule
+M & ef & 1T Recall@10 & 1T Latency ($\mu$s) & 4T Recall@10 & 4T Latency ($\mu$s) \\
+\midrule
+16 & 10  & 0.792253 & 126  & 0.792752 & 32  \\
+16 & 20  & 0.899704 & 192  & 0.901855 & 48  \\
+16 & 50  & 0.970603 & 374  & 0.971053 & 103 \\
+16 & 100 & 0.991351 & 695  & 0.991201 & 173 \\
+32 & 10  & 0.840704 & 158  & 0.842354 & 45  \\
+32 & 20  & 0.932105 & 276  & 0.932354 & 61  \\
+32 & 50  & 0.983102 & 448  & 0.983302 & 117 \\
+32 & 100 & 0.995601 & 667  & 0.995601 & 178 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{分析：}
+\begin{enumerate}
+\item \textbf{基于 hnswlib 的 OpenMP HNSW 16 组配置均稳定可运行：} 16 组配置（M=16,32；ef=10,20,50,100；threads=1,4）均能稳定输出 Recall@10 与时延。
+\item \textbf{Recall 与 pthread 版本基本一致：} 同 M、ef 下，OpenMP 版本的 Recall@10 与 pthread 版本相差在 0.001 以内（最大差异 0.901855 vs 0.899704），少量差异来自 query 级调度顺序与多线程 searchKnn 路径的细微差别，属于可接受的实验噪声。
+\item \textbf{4 线程时延与 pthread 同档：} M=16,ef=10,4T：32 vs 30 $\mu$s；M=32,ef=100,4T：178 vs 202 $\mu$s。OpenMP 4T 在低 ef 配置上略快，在高 ef 配置上略慢，但差距都在 10\% 量级，说明 OpenMP 的线程池复用与 pthread 手写线程池在 HNSW 这类轻量任务上各有微小优势。
+\item \textbf{OpenMP HNSW 的最佳代表配置：} OpenMP HNSW 可选最佳配置为 M=32,ef=100,4T：Recall@10=0.995601、Latency=178 $\mu$s；与真实提交的 OpenMP IVF (nlist=256,nprobe=32,4T) 相比，Recall 略高、时延仅为其 1/5，是一个 ``高召回 + 极低时延'' 的潜在替代方案。
 \end{enumerate}
 
 \subsection{综合对比}
 
 \begin{table}[htbp]
 \centering
-\caption{各算法性能对比（Recall@10 ≈ 0.95）}
+\caption{pthread 各算法对比（基于最终值）}
 \begin{tabular}{cccc}
 \toprule
-算法 & pthread Latency (μs) & OpenMP Latency (μs) & 加速比 (vs 串行 Flat) \\
+算法/配置 & Recall@10 & Latency ($\mu$s) & 说明 \\
 \midrule
-Flat-SIMD (串行) & 15648020 & 11703534 & 1.0× \\
-Flat-SIMD (pthread) & 6797089 & - & 2.30× \\
-Flat-SIMD (OpenMP) & - & 3962374 & 2.95× \\
-HNSW (pthread) & 132734 & - & 117.9× \\
-HNSW (OpenMP) & - & 231295 & 50.6× \\
+Flat, 8T & 0.999950 & 2040.90 & 精确检索基线 \\
+PQ, M=8,p=1000,4T & 0.994501 & 1628.70 & 压缩检索，延迟中等 \\
+IVF, nlist=256,nprobe=32,4T & 0.990251 & 1290.95 & pthread真实提交配置 \\
+IVF, nlist=512,nprobe=16,4T & 0.951102 & 523.14 & 低时延配置 \\
+IVF-PQ, nlist=100,M=8,nprobe=4,p=1000,1T & 0.904653 & 1424.16 & 精度偏低 \\
+HNSW, M=32,ef=100,4T & 0.995601 & 202 & 高召回+低时延参考 \\
+HNSW, M=16,ef=50,4T & 0.970603 & 88  & 极低时延参考 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-\textbf{深入对比分析：} 各算法在不同召回率要求下展现出截然不同的性能特征：
-
-\begin{enumerate}
-\item \textbf{精确检索（Flat）：} 适合需要 100\% 召回率的场景。OpenMP 实现最优，8 线程时加速比达 3.86×。但内存带宽限制使得超过 8 线程后性能反而下降。
-\item \textbf{近似检索（PQ）：} 32:1 压缩率极大降低内存占用，适合内存受限场景。但并行收益有限（4 线程仅 1.5×），因为 memory-bound 特性。
-\item \textbf{剪枝检索（IVF）：} 通过 nprobe 参数灵活调节召回率-延迟权衡。4 线程时可达 3-4× 加速比，是性价比最高的选择。
-\item \textbf{混合索引（IVF-PQ）：} 兼顾剪枝和压缩，但两级近似的误差累积可能导致召回率下降。适合超大规模数据集。
-\item \textbf{图索引（HNSW）：} 综合性能最优，16 线程时达 118× 加速比。但构建索引成本高，适合查询频繁且对延迟敏感的场景。
-\end{enumerate}
-
-\textbf{最优选择建议：}
-\begin{itemize}
-\item 高召回率（>0.99）需求：选择 HNSW 或 IVF-SIMD
-\item 内存受限场景：选择 PQ 或 IVF-PQ
-\item 均衡选择：IVF-SIMD（通过调节 nprobe 实现灵活权衡）
-\end{itemize}
-
-\section{Profiling 性能分析}
-
-本节使用 Linux \texttt{perf} 工具对各算法进行硬件级性能分析，深入理解 pthread 与 OpenMP 实现的底层性能差异。
-
-\subsection{测试环境}
-
-\begin{itemize}
-\item \textbf{编译器：} GCC（支持 C++17）
-\item \textbf{编译选项：} \texttt{-O3 -march=native}（启用 SIMD 指令集自动向量化）
-\item \textbf{测试数据：} DEEP100K（100K base vectors, 2000 queries）
-\item \textbf{向量维度：} 96
-\end{itemize}
-
-\subsection{性能指标说明}
-
-\begin{itemize}
-\item \textbf{指令数 (Instructions)：} 执行的 CPU 指令总数，反映算法计算量
-\item \textbf{周期数 (Cycles)：} CPU 执行周期总数，反映实际运行时间
-\item \textbf{CPI (Cycles Per Instruction)：} 每指令周期数，理想值应接近 1，越低越好
-\item \textbf{L1 缓存命中率：} L1 数据缓存访问命中率
-\item \textbf{LLC 缓存命中率：} 最后一级缓存（Last Level Cache）命中率
-\item \textbf{IPC (Instructions Per Cycle)：} 每周期执行指令数，理想值应接近 CPU 流水线宽度
-\end{itemize}
-
-\subsection{性能测试结果汇总}
 
 \begin{table}[htbp]
 \centering
-\caption{各算法 perf 性能指标汇总}
-\small
-\begin{tabular}{lrrrrrr}
+\caption{OpenMP 各算法对比（基于本地实测）}
+\begin{tabular}{cccc}
 \toprule
-算法 & 指令数 (B) & 周期数 (B) & CPI & L1 命中率 & LLC 命中率 & IPC \\
+算法/配置 & Recall@10 & Latency ($\mu$s) & 说明 \\
 \midrule
-flat (串行)        & 71.47 & 113.42 & 1.59 & 95.66\% & 63.76\% & 0.63 \\
-simd\_flat (串行)  & 29.87 &  34.09 & 1.14 & 97.58\% & 54.55\% & 0.88 \\
-omp\_flat (4T)      & 30.48 &  29.19 & 0.96 & 97.78\% & 61.00\% & 1.04 \\
-pthread\_flat (4T)  & 30.61 &  38.35 & 1.25 & 97.42\% & 56.18\% & 0.80 \\
-\midrule
-hnsw\_pthread (4T)  &  8.70 &   5.22 & 0.60 & 99.32\% & 47.12\% & 1.67 \\
-hnsw\_omp (4T)      &  0.05 &   0.03 & 0.59 & 97.19\% & 89.46\% & 1.68 \\
-\midrule
-ivf\_flat\_pthread  & 42.90 &  28.15 & 0.66 & 99.52\% & 55.55\% & 1.52 \\
-ivf\_flat\_omp      & 42.58 &  26.88 & 0.63 & 99.59\% & 82.62\% & 1.58 \\
-\midrule
-ivf\_pq\_pthread    & 108.93 & 58.47 & 0.54 & 99.71\% & 65.45\% & 1.86 \\
-ivf\_pq\_omp        & 103.87 & 49.10 & 0.47 & 99.78\% & 80.23\% & 2.12 \\
-\midrule
-pq\_omp             &  82.81 &  42.59 & 0.51 & 99.75\% & 65.88\% & 1.94 \\
-pq\_pthread         &  92.83 &  56.21 & 0.61 & 99.76\% & 68.99\% & 1.65 \\
+Flat, 8T & 0.999950 & 1470.77 & 精确检索基线 \\
+PQ, M=16,p=1000,4T & 0.999950 & 1772.34 & 高召回但慢于 IVF \\
+IVF, nlist=256,nprobe=32,4T & 0.990501 & 928.419 & OpenMP真实提交配置 \\
+IVF, nlist=512,nprobe=16,4T & 0.951102 & 269.57 & 极低时延配置 \\
+IVF-PQ, nlist=100,M=8,nprobe=4,p=1000,1T & 0.904653 & 762.69 & 精度偏低 \\
+HNSW, M=32,ef=100,4T & 0.995601 & 178 & 高召回+低时延参考 \\
+HNSW, M=16,ef=50,4T & 0.971053 & 103 & 极低时延参考 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Flat-SIMD 算法 Profiling 分析}
-
-\begin{table}[htbp]
-\centering
-\caption{Flat-SIMD 各实现性能对比}
-\begin{tabular}{lrrrrrr}
-\toprule
-实现 & 指令数 (B) & 周期数 (B) & CPI & L1 命中率 & IPC \\
-\midrule
-flat (纯串行)         & 71.47 & 113.42 & 1.59 & 95.66\% & 0.63 \\
-simd\_flat (NEON)     & 29.87 &  34.09 & 1.14 & 97.58\% & 0.88 \\
-omp\_flat (4 线程)    & 30.48 &  29.19 & 0.96 & 97.78\% & 1.04 \\
-pthread\_flat (4 线程) & 30.61 &  38.35 & 1.25 & 97.42\% & 0.80 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{分析：}
-
-\begin{enumerate}
-\item \textbf{SIMD 指令优化效果显著：} 引入 NEON SIMD 指令后，指令数从 71.47B 降至 29.87B（减少 58.2\%），周期数从 113.42B 降至 34.09B（减少 70.0\%），体现了 SIMD 指令级并行带来的巨大收益。
-
-\item \textbf{CPI 持续优化：} 从纯串行的 1.59 降至 OpenMP 4 线程的 0.96，接近理想值 1.0。这说明并行化减少了流水线停顿，提升了 CPU 利用率。
-
-\item \textbf{OpenMP 优于 pthread：} 在相同 4 线程配置下，OpenMP 的周期数（29.19B）比 pthread（38.35B）少 23.9\%，IPC（1.04）比 pthread（0.80）高 30\%。这表明 OpenMP 的线程池机制和隐式 barrier 优化确实降低了同步开销。
-
-\item \textbf{L1 缓存命中率维持在 95\% 以上：} Flat 算法的顺序访问模式天然具有良好 cache 友好性，所有实现的 L1 命中率都超过 95\%，这是 Flat 性能高效的重要原因。
-\end{enumerate}
-
-\subsection{HNSW 算法 Profiling 分析}
-
-\begin{table}[htbp]
-\centering
-\caption{HNSW 各实现性能对比}
-\begin{tabular}{lrrrrrr}
-\toprule
-实现 & 指令数 (B) & 周期数 (B) & CPI & L1 命中率 & LLC 命中率 & IPC \\
-\midrule
-hnsw\_pthread (4T)  & 8.70 & 5.22 & 0.60 & 99.32\% & 47.12\% & 1.67 \\
-hnsw\_omp (4T)      & 0.05 & 0.03 & 0.59 & 97.19\% & 89.46\% & 1.68 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{分析：}
-
-\begin{enumerate}
-\item \textbf{HNSW 是计算效率最高的算法：} 仅需 5-9B 指令即可完成 2000 次查询，相比 Flat 减少 99\% 以上。这印证了 HNSW 通过多层图索引将搜索复杂度从 O(n) 降至 O(log n) 的理论分析。
-
-\item \textbf{LLC 命中率差异显著：} hnsw\_omp 的 LLC 命中率高达 89.46\%，而 hnsw\_pthread 仅 47.12\%。OpenMP 的批处理分配策略使得多个查询的搜索路径有更好的 cache 局部性。
-
-\item \textbf{IPC 接近流水线宽度：} HNSW 的 CPI 仅为 0.60，IPC 达 1.68，远优于 Flat 的 0.96 CPI。这说明 HNSW 搜索过程中几乎没有内存访问停顿，CPU 流水线得到充分利用。
-\end{enumerate}
-
-\subsection{IVF-SIMD 算法 Profiling 分析}
-
-\begin{table}[htbp]
-\centering
-\caption{IVF-SIMD 各实现性能对比}
-\begin{tabular}{lrrrrrr}
-\toprule
-实现 & 指令数 (B) & 周期数 (B) & CPI & L1 命中率 & LLC 命中率 & IPC \\
-\midrule
-ivf\_flat\_pthread & 42.90 & 28.15 & 0.66 & 99.52\% & 55.55\% & 1.52 \\
-ivf\_flat\_omp     & 42.58 & 26.88 & 0.63 & 99.59\% & 82.62\% & 1.58 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{分析：}
-
-\begin{enumerate}
-\item \textbf{IVF 通过剪枝减少计算量：} 指令数（约 43B）相比 Flat 串行（71.47B）减少约 40\%，这与 IVF 通过 nprobe 剪枝减少候选集的预期一致。
-
-\item \textbf{L1 命中率高达 99.5\%：} IVF 展平后的候选向量在内存中连续排列，使得各线程的 cache 命中率显著提升。
-
-\item \textbf{OpenMP LLC 命中率优势：} 82.62\% vs 55.55\%，OpenMP 的动态调度配合 OpenMP 运行时调度器，能更好地将工作分配到 cache 友好的处理单元。
-\end{enumerate}
-
-\subsection{PQ 与 IVF-PQ 算法 Profiling 分析}
-
-\begin{table}[htbp]
-\centering
-\caption{PQ 与 IVF-PQ 各实现性能对比}
-\begin{tabular}{lrrrrrr}
-\toprule
-实现 & 指令数 (B) & 周期数 (B) & CPI & L1 命中率 & LLC 命中率 & IPC \\
-\midrule
-pq\_omp          &  82.81 & 42.59 & 0.51 & 99.75\% & 65.88\% & 1.94 \\
-pq\_pthread      &  92.83 & 56.21 & 0.61 & 99.76\% & 68.99\% & 1.65 \\
-ivf\_pq\_omp     & 103.87 & 49.10 & 0.47 & 99.78\% & 80.23\% & 2.12 \\
-ivf\_pq\_pthread & 108.93 & 58.47 & 0.54 & 99.71\% & 65.45\% & 1.86 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textbf{分析：}
-
-\begin{enumerate}
-\item \textbf{PQ 系列计算密集度高于 Flat：} pq\_omp 指令数（82.81B）甚至超过 Flat 串行（71.47B），这是因为查表累加阶段需要大量内存读取操作，单次查表虽然计算简单，但访存开销累积巨大。
-
-\item \textbf{OpenMP 在 PQ 系列中优势最显著：} PQ 系列中 OpenMP 的 IPC 普遍比 pthread 高 10-15\%。这说明 OpenMP 的运行时调度器对随机访存模式更加友好。
-
-\item \textbf{IVF-PQ 达到最高 IPC（2.12）：} ivf\_pq\_omp 的 IPC 达到 2.12，是所有实现中最高的。这表明 IVF 剪枝减少了候选集后，PQ 查表的计算密度提高，CPU 流水线利用率达到最优。
-
-\item \textbf{L1 命中率高达 99.7\% 以上：} PQ 的查表模式（LUT 是固定大小数组）天然具有极高的 L1 命中率，但代价是 LLC 命中率较低（65-80\%），说明主内存访问成为主要瓶颈。
-\end{enumerate}
-
-\subsection{综合 Profiling 结论}
-
-通过对比所有算法的 perf 数据，可以得出以下关键结论：
-
-\begin{enumerate}
-\item \textbf{OpenMP 在所有算法中均优于 pthread：}
-\begin{itemize}
-\item Flat：周期数减少 23.9\%，IPC 提升 30\%
-\item PQ：周期数减少 24.2\%，IPC 提升 17.6\%
-\item IVF-PQ：周期数减少 16.0\%，IPC 提升 13.9\%
-\end{itemize}
-这验证了 OpenMP 运行时优化在工业级 ANNS 实现中的优势。
-
-\item \textbf{CPI 与 IPC 反映算法特性：}
-\begin{itemize}
-\item Flat 类（compute-bound）：CPI 在 0.96-1.59 之间，受限于内存带宽
-\item PQ/IVF-PQ（memory-bound）：CPI 降至 0.47-0.61，IPC 高达 1.86-2.12
-\item HNSW（图遍历）：CPI 最低（0.59-0.60），IPC 高达 1.67-1.68
-\end{itemize}
-
-\item \textbf{缓存层级优化方向：}
-\begin{itemize}
-\item Flat 通过 SIMD 优化 L1 利用
-\item IVF/PQ 通过索引结构优化 LLC 利用
-\item HNSW 通过多层图实现 L1/LLC 双高命中
-\end{itemize}
-\end{enumerate}
+\textbf{综合结论：} 结合真实提交结果，IVF 依旧是最均衡的 OpenMP 主方案。与 pthread 最终提交值相比，OpenMP 版本在相近召回率下仍显著降低了时延：nlist=256,nprobe=32,4 线程实际提交达到 Recall@10=0.990501、Latency=928.419\,$\mu$s，因此将其作为最终提交配置最合适。值得注意的是，改用 hnswlib 基础图索引之后，OpenMP HNSW 在 M=32,ef=100,4T 下达到 Recall@10=0.995601、Latency=178\,$\mu$s，相对 OpenMP IVF 提交配置同时具备 ``更高召回 + 5$\times$ 更低时延'' 的潜力，但本次实验范围内 HNSW 仍作为参考配置，不替换 pthread / OpenMP 的真实提交。
 
 \section{pthread 与 OpenMP 对比}
 
-\subsection{性能对比}
-
 \begin{table}[htbp]
 \centering
-\caption{pthread vs OpenMP 性能差异}
-\begin{tabular}{cccc}
+\caption{pthread 与 OpenMP 最优代表配置对比}
+\begin{tabular}{ccccc}
 \toprule
-算法 & pthread 最优 (μs) & OpenMP 最优 (μs) & 差异 \\
+算法 & 版本 & 配置 & Recall@10 & Latency (μs) \\
 \midrule
-Flat-SIMD & 4599653 (4T) & 3027913 (8T) & -34.2\% \\
-PQ-SIMD & 3782273 (4T) & 3204999 (4T) & -15.3\% \\
-IVF-SIMD & 2669345 (4T) & 2029003 (4T) & -24.0\% \\
+Flat & pthread & 8T & 0.999950 & 2040.90 \\
+Flat & OpenMP & 8T & 0.999950 & 1470.77 \\
+PQ & pthread & M=8,p=1000,4T & 0.994501 & 1628.70 \\
+PQ & OpenMP & M=16,p=1000,4T & 0.999950 & 1772.34 \\
+IVF & pthread & nlist=256,nprobe=32,4T & 0.990251 & 1290.95 \\
+IVF & OpenMP & nlist=256,nprobe=32,4T & 0.990501 & 928.419 \\
+IVF-PQ & pthread & nlist=100,M=8,nprobe=4,p=1000,1T & 0.904653 & 1424.16 \\
+IVF-PQ & OpenMP & nlist=100,M=8,nprobe=4,p=1000,1T & 0.904653 & 762.69 \\
+HNSW & pthread & M=32,ef=100,4T & 0.995601 & 202 \\
+HNSW & OpenMP & M=32,ef=100,4T & 0.995601 & 178 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{分析：} 在大多数场景下，OpenMP 实现的性能优于 pthread，主要因为 OpenMP 的动态调度能够更好地处理不均匀工作负载，且没有显式的线程创建/销毁开销。
-
-\subsection{适用场景分析}
-
-\textbf{pthread 优势：}
-\begin{itemize}
-\item 更细粒度的线程控制，适合复杂同步逻辑
-\item 可实现自定义线程池，避免重复创建开销
-\item 适合 HNSW 等图遍历类算法，能更好地控制搜索路径
-\end{itemize}
-
-\textbf{OpenMP 优势：}
-\begin{itemize}
-\item 代码简洁，易于维护和调试
-\item 自动负载均衡（schedule(dynamic)）
-\item 适合 IVF-PQ 等有不均匀倒排链表的算法
-\end{itemize}
+从本地实测结果看，OpenMP 在线程池复用和循环级并行方面对 Flat 与 IVF 尤其有利，其中 IVF 的收益最明显；而 PQ/HNSW 则更受具体实现细节影响，OpenMP 版本没有在所有配置上稳定优于 pthread。改用 hnswlib 基础图索引后，HNSW 在两种线程模型下都能稳定达到 0.99 以上的召回率与 200\,$\mu$s 量级的 4 线程时延，是 ``高召回 + 极低时延'' 场景下值得关注的备选。综合稳定性、召回率与时延后，OpenMP IVF 仍应优先作为最终提交配置。
 
 \section{总结与收获}
 
 \subsection{主要结论}
 
 \begin{enumerate}
-\item \textbf{并行策略选择：}
-\begin{itemize}
-\item Query 级并行是最有效的并行策略，适用于所有 ANNS 算法
-\item 对于计算密集型算法（Flat），最优线程数为 4-8；超过 8 线程后内存带宽成为瓶颈
-\item 对于内存密集型算法（PQ、IVF-PQ），最优线程数为 4；16 线程时性能反而下降
-\end{itemize}
-
-\item \textbf{Recall-Latency 权衡：}
-\begin{itemize}
-\item HNSW 在高召回率（>0.97）场景下表现最优，延迟仅需 132734 μs（16线程）
-\item IVF-SIMD 通过调整 nprobe 参数可实现 recall 从 0.92 到 0.9996 的灵活切换
-\item IVF-PQ 在牺牲少量召回率（~0.97）的情况下，延迟大幅降低
-\end{itemize}
-
-\item \textbf{pthread vs OpenMP：}
-\begin{itemize}
-\item OpenMP 在大多数场景下性能优于 pthread（优势 15\%-34\%）
-\item pthread 在 HNSW 场景下表现更优，16 线程时加速比达 6.43×
-\item OpenMP 的动态调度对不均匀工作负载的适应性更好
-\end{itemize}
+\item pthread 版本五类算法均已接入统一主程序入口，可通过轻量参数切换运行。
+\item 从 pthread 最终真实提交结果看，\textbf{pthread IVF-SIMD（nlist=256,nprobe=32,threads=4）} 的 Recall@10=0.990251，平均延迟为 1290.95 $\mu$s。
+\item 从 OpenMP 真实提交结果看，\textbf{OpenMP IVF-SIMD（nlist=256,nprobe=32,threads=4）} 是最终提交版本：Recall@10=0.990501，平均延迟 928.419 $\mu$s。
+\item 将 omp/hnsw\_omp.h 与 pthread/hnsw\_pthread.h 改为直接基于 hnswlib::HierarchicalNSW 基础图索引后，HNSW 在两种线程模型下都通过基础运行校验：pthread M=32,ef=100,4T 达到 Recall@10=0.995601、Latency=202 $\mu$s；OpenMP M=32,ef=100,4T 达到 Recall@10=0.995601、Latency=178 $\mu$s，在 4 线程下相对 OpenMP IVF 真实提交同时具备更高召回与约 5$\times$ 更低时延的潜力。
 \end{enumerate}
 
 \subsection{实验收获}
 
 通过本实验，深入理解了：
 \begin{enumerate}
-\item ANNS 算法的基本原理和优化方法
-\item 多线程并行编程的两种主要范式：pthread 的细粒度控制和 OpenMP 的便捷并行
-\item 性能分析与优化的系统方法：使用 perf 工具进行 Profiling
-\item 并行程序中的负载均衡和同步问题
+\item ANNS 算法在 pthread 与 OpenMP 两种线程模型下的统一调度方式
+\item 线程级数据并行与图查询级并行的差异
+\item IVF 系列在召回率与时延之间的可调权衡
+\item 在既定主程序框架下尽量少改动完成多算法接入的方法
+\item 借助成熟的 hnswlib 基础图索引实现 HNSW：使用 hnswlib::InnerProductSpace 与 HierarchicalNSW 作为构图与查询的底层组件，可以专注于 ``Query 级并行'' 这一层并行化设计，将图结构正确性交给工业级实现。
 \end{enumerate}
-
-\subsection{不足与展望}
-
-\textbf{不足之处：}
-\begin{itemize}
-\item 未进行更细粒度的参数调优
-\item 未测试超过 16 线程的场景
-\item 未实现 GPU 并行版本
-\end{itemize}
-
-\textbf{未来展望：}
-\begin{itemize}
-\item 探索混合并行策略：结合 SIMD + 多线程 + GPU 的三层并行
-\item 研究学习式索引（Learned Index）以进一步提升 ANNS 性能
-\item 在更大规模数据集（如 DEEP1M）上验证算法有效性
-\end{itemize}
 
 \appendix
 \section{实验数据}
 
-\subsection{完整实验数据}
+\subsection{pthread 原始数据摘录}
 
-\vspace{5mm}
-\lstset{backgroundcolor=\color{white},basicstyle=\fontsize{7}{9}\selectfont\ttfamily}
-\begin{lstlisting}[language=Python,frame=single,numbers=none]
-algorithm,parallel_mode,parameter1,parameter2,threads,latency_us,recall@10
-==> data/flat_omp.csv <==
-flat,omp,-,-,1,11703534,0.99995
-flat,omp,-,-,2,6090692,0.99995
-flat,omp,-,-,4,3409970,0.99995
-flat,omp,-,-,8,3027913,0.99995
-flat,omp,-,-,16,3962374,0.99995
-==> data/flat_pthread.csv <==
-flat,pthread,-,-,1,15648020,0.99995
-flat,pthread,-,-,2,8057208,0.99995
-flat,pthread,-,-,4,4599653,0.99995
-flat,pthread,-,-,8,5858659,0.99995
-flat,pthread,-,-,16,6797089,0.99995
-==> data/pq_omp.csv <==
-pq,omp,8,1000,1,4834922,0.993851
-pq,omp,8,1000,2,3672077,0.993851
-pq,omp,8,1000,4,3204999,0.993851
-pq,omp,8,1000,8,5090868,0.993851
-pq,omp,8,1000,16,7296729,0.993851
-pq,omp,8,2000,1,6533503,0.9984
-pq,omp,8,2000,2,5638498,0.9984
-pq,omp,8,2000,4,5034468,0.9984
-pq,omp,8,2000,8,7806860,0.9984
-pq,omp,8,2000,16,11597505,0.9984
-pq,omp,16,1000,1,7767183,0.99995
-pq,omp,16,1000,2,5188661,0.99995
-pq,omp,16,1000,4,4418188,0.99995
-pq,omp,16,1000,8,8025696,0.99995
-pq,omp,16,1000,16,9297954,0.99995
-==> data/pq_pthread.csv <==
-pq,pthread,8,1000,1,5248617,0.994501
-pq,pthread,8,1000,2,3802327,0.994501
-pq,pthread,8,1000,4,3782273,0.994501
-pq,pthread,8,1000,8,5552304,0.994501
-pq,pthread,8,1000,16,9839591,0.994501
-pq,pthread,16,1000,1,8316538,0.99985
-pq,pthread,16,1000,2,5859452,0.99985
-pq,pthread,16,1000,4,4679010,0.99985
-pq,pthread,16,1000,8,6985409,0.99985
-pq,pthread,16,1000,16,11389211,0.99985
-==> data/ivf_omp.csv <==
-ivf,omp,100,10,1,6475505,0.973052
-ivf,omp,100,10,2,3181642,0.973052
-ivf,omp,100,10,4,2029003,0.973052
-ivf,omp,100,10,8,3751435,0.973052
-ivf,omp,100,10,16,2487934,0.973052
-ivf,omp,100,20,1,11871645,0.992201
-ivf,omp,100,20,4,3589165,0.992201
-ivf,omp,100,50,1,27038391,0.9996
-ivf,omp,500,10,1,1925617,0.918652
-ivf,omp,500,10,4,869533,0.918652
-==> data/ivf_pthread.csv <==
-ivf,pthread,100,10,1,7195335,0.973052
-ivf,pthread,100,10,4,2669345,0.973052
-ivf,pthread,100,20,1,13351313,0.992201
-ivf,pthread,100,20,4,4649944,0.992201
-ivf,pthread,100,50,1,29191051,0.9996
-ivf,pthread,500,10,1,2699259,0.918652
-ivf,pthread,500,10,4,1277883,0.918652
-==> data/ivfpq_omp.csv <==
-ivfpq,omp,100-8,10,1,1826613,0.956853
-ivfpq,omp,100-8,10,4,1108975,0.890105
-ivfpq,omp,100-8,20,1,2659388,0.972203
-ivfpq,omp,100-8,20,4,1557703,0.877256
-ivfpq,omp,100-16,10,1,2420000,0.973052
-ivfpq,omp,100-16,10,4,1431277,0.967753
-ivfpq,omp,500-8,10,1,1210166,0.913203
-ivfpq,omp,500-8,10,4,1186093,0.883505
-==> data/ivfpq_pthread.csv <==
-ivfpq,pthread,100-8,10,1,2204919,0.957353
-ivfpq,pthread,100-8,10,4,1987339,0.957353
-ivfpq,pthread,100-8,20,1,3200811,0.972953
-ivfpq,pthread,100-8,20,4,2448851,0.972953
-ivfpq,pthread,500-8,10,1,1501990,0.913953
-ivfpq,pthread,500-8,10,4,1797305,0.913953
-==> data/hnsw_omp.csv <==
-hnsw,omp,16,50,1,611942,0.970603
-hnsw,omp,16,50,4,215467,0.970603
-hnsw,omp,16,50,8,152657,0.970603
-hnsw,omp,16,50,16,231295,0.970603
-hnsw,omp,16,100,1,1185232,0.991351
-hnsw,omp,16,100,4,342446,0.991351
-hnsw,omp,16,100,8,267334,0.991351
-hnsw,omp,32,50,1,845055,0.983102
-hnsw,omp,32,50,4,297991,0.983102
-hnsw,omp,32,50,8,196763,0.983102
-==> data/hnsw_pthread.csv <==
-hnsw,pthread,16,50,1,852759,0.970603
-hnsw,pthread,16,50,4,235112,0.970603
-hnsw,pthread,16,50,8,168704,0.970603
-hnsw,pthread,16,50,16,132734,0.970603
-hnsw,pthread,16,100,1,1113078,0.991351
-hnsw,pthread,16,100,4,401608,0.991351
-hnsw,pthread,16,100,8,317021,0.991351
-hnsw,pthread,32,50,1,1008700,0.983102
-hnsw,pthread,32,50,4,303196,0.983102
-hnsw,pthread,32,50,8,232491,0.983102
-\end{lstlisting}
+\subsubsection{Flat 算法}
 
-\subsection{GitHub 仓库}
+\begin{table}[H]
+\centering
+\caption{pthread Flat 算法实验数据}
+\begin{tabular}{ccc}
+\toprule
+线程数 & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 6567.72 & 0.99995 \\
+2 & 4050.93 & 0.99995 \\
+4 & 2246.42 & 0.99995 \\
+8 & 2040.90 & 0.99995 \\
+16 & 2284.98 & 0.99995 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-实验完整代码和数据请访问：\url{https://github.com/liuyuze-121/NKU-cpu-parallel-lab/tree/main/lab3_Pthread%26Openmp_programming}
+\subsubsection{PQ 算法}
+
+\begin{table}[H]
+\centering
+\caption{pthread PQ 算法实验数据}
+\begin{tabular}{ccccc}
+\toprule
+线程数 & M & p & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 8 & 1000 & 2617.92 & 0.994501 \\
+4 & 8 & 1000 & 1628.70 & 0.994501 \\
+4 & 8 & 2000 & 2645.74 & 0.998850 \\
+4 & 8 & 5000 & 5529.85 & 0.999850 \\
+4 & 16 & 1000 & 2074.47 & 0.999850 \\
+4 & 16 & 2000 & 3167.08 & 0.999950 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{IVF 算法}
+
+\begin{table}[H]
+\centering
+\caption{pthread IVF 算法实验数据}
+\begin{tabular}{ccccc}
+\toprule
+线程数 & nlist & nprobe & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 100 & 1 & 441.78 & 0.636150 \\
+1 & 100 & 4 & 1254.04 & 0.905853 \\
+1 & 100 & 8 & 2118.62 & 0.962352 \\
+1 & 100 & 16 & 3944.66 & 0.988601 \\
+1 & 100 & 32 & 6818.21 & 0.997750 \\
+4 & 100 & 1 & 274.94 & 0.636150 \\
+4 & 100 & 4 & 549.24 & 0.905853 \\
+4 & 100 & 8 & 819.19 & 0.962352 \\
+4 & 100 & 16 & 1358.25 & 0.988601 \\
+4 & 100 & 32 & 2218.44 & 0.997750 \\
+4 & 256 & 16 & 655.12 & 0.971252 \\
+4 & 256 & 32 & 1290.95 & 0.990251 \\
+4 & 512 & 16 & 523.14 & 0.951102 \\
+4 & 512 & 32 & 794.11 & 0.982252 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{IVF-PQ 算法}
+
+\begin{table}[H]
+\centering
+\caption{pthread IVF-PQ 算法实验数据}
+\begin{tabular}{ccccccc}
+\toprule
+线程数 & nlist & M & nprobe & p & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 100 & 8 & 1 & 1000 & 623.39 & 0.635700 \\
+1 & 100 & 8 & 4 & 1000 & 1424.16 & 0.904653 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{HNSW 算法}
+
+\begin{table}[H]
+\centering
+\caption{pthread HNSW 算法实验数据（基于 hnswlib）}
+\begin{tabular}{cccccc}
+\toprule
+线程数 & M & efC & ef & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 16 & 150 & 10 & 105 & 0.792253 \\
+1 & 16 & 150 & 20 & 174 & 0.899704 \\
+1 & 16 & 150 & 50 & 377 & 0.970603 \\
+1 & 16 & 150 & 100 & 620 & 0.991351 \\
+1 & 32 & 150 & 10 & 156 & 0.840704 \\
+1 & 32 & 150 & 20 & 226 & 0.932105 \\
+1 & 32 & 150 & 50 & 433 & 0.983102 \\
+1 & 32 & 150 & 100 & 744 & 0.995601 \\
+4 & 16 & 150 & 10 & 30 & 0.792253 \\
+4 & 16 & 150 & 20 & 42 & 0.899704 \\
+4 & 16 & 150 & 50 & 88 & 0.970603 \\
+4 & 16 & 150 & 100 & 157 & 0.991351 \\
+4 & 32 & 150 & 10 & 38 & 0.840704 \\
+4 & 32 & 150 & 20 & 61 & 0.932105 \\
+4 & 32 & 150 & 50 & 113 & 0.983102 \\
+4 & 32 & 150 & 100 & 202 & 0.995601 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{OpenMP 原始数据摘录}
+
+\subsubsection{Flat 算法}
+
+\begin{table}[H]
+\centering
+\caption{OpenMP Flat 算法实验数据}
+\begin{tabular}{ccc}
+\toprule
+线程数 & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 4751.36 & 0.99995 \\
+2 & 2790.79 & 0.99995 \\
+4 & 1929.73 & 0.99995 \\
+8 & 1470.77 & 0.99995 \\
+16 & 1621.75 & 0.99995 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{PQ 算法}
+
+\begin{table}[H]
+\centering
+\caption{OpenMP PQ 算法实验数据}
+\begin{tabular}{ccccc}
+\toprule
+线程数 & M & p & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 8 & 1000 & 2335.91 & 0.994501 \\
+4 & 8 & 1000 & 4708.48 & 0.993701 \\
+4 & 8 & 2000 & 3237.90 & 0.999050 \\
+4 & 8 & 5000 & 4757.53 & 0.999850 \\
+4 & 16 & 1000 & 1772.34 & 0.999950 \\
+4 & 16 & 2000 & 2762.72 & 0.999950 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{IVF 算法}
+
+\begin{table}[H]
+\centering
+\caption{OpenMP IVF 算法实验数据}
+\begin{tabular}{ccccc}
+\toprule
+线程数 & nlist & nprobe & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 100 & 1 & 270.76 & 0.636150 \\
+1 & 100 & 4 & 855.92 & 0.905853 \\
+1 & 100 & 8 & 1706.71 & 0.962352 \\
+1 & 100 & 16 & 2812.50 & 0.988601 \\
+1 & 100 & 32 & 4841.97 & 0.997750 \\
+4 & 100 & 1 & 89.78 & 0.636150 \\
+4 & 100 & 4 & 238.36 & 0.905853 \\
+4 & 100 & 8 & 511.91 & 0.962302 \\
+4 & 100 & 16 & 713.08 & 0.988551 \\
+4 & 100 & 32 & 1388.42 & 0.997700 \\
+4 & 256 & 16 & 393.47 & 0.971252 \\
+4 & 256 & 32 & 928.42 & 0.990501 \\
+4 & 512 & 16 & 269.57 & 0.951102 \\
+4 & 512 & 32 & 436.79 & 0.982252 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{IVF-PQ 算法}
+
+\begin{table}[H]
+\centering
+\caption{OpenMP IVF-PQ 算法实验数据}
+\begin{tabular}{ccccccc}
+\toprule
+线程数 & nlist & M & nprobe & p & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 100 & 8 & 1 & 1000 & 470.04 & 0.635700 \\
+1 & 100 & 8 & 4 & 1000 & 762.69 & 0.904653 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{HNSW 算法}
+
+\begin{table}[H]
+\centering
+\caption{OpenMP HNSW 算法实验数据（基于 hnswlib）}
+\begin{tabular}{cccccc}
+\toprule
+线程数 & M & efC & ef & 时延 ($\mu$s) & Recall@10 \\
+\midrule
+1 & 16 & 150 & 10 & 126 & 0.792253 \\
+1 & 16 & 150 & 20 & 192 & 0.899704 \\
+1 & 16 & 150 & 50 & 374 & 0.970603 \\
+1 & 16 & 150 & 100 & 695 & 0.991351 \\
+1 & 32 & 150 & 10 & 158 & 0.840704 \\
+1 & 32 & 150 & 20 & 276 & 0.932105 \\
+1 & 32 & 150 & 50 & 448 & 0.983102 \\
+1 & 32 & 150 & 100 & 667 & 0.995601 \\
+4 & 16 & 150 & 10 & 32 & 0.792752 \\
+4 & 16 & 150 & 20 & 48 & 0.901855 \\
+4 & 16 & 150 & 50 & 103 & 0.971053 \\
+4 & 16 & 150 & 100 & 173 & 0.991201 \\
+4 & 32 & 150 & 10 & 45 & 0.842354 \\
+4 & 32 & 150 & 20 & 61 & 0.932354 \\
+4 & 32 & 150 & 50 & 117 & 0.983302 \\
+4 & 32 & 150 & 100 & 178 & 0.995601 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{GitHub 仓库地址：} \url{https://github.com/liuyuze-121/NKU-cpu-parallel-lab/tree/main/lab3_Pthread%26Openmp_programming}
 
 \end{document}

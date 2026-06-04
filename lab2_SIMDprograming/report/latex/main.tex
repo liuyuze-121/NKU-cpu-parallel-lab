@@ -532,7 +532,7 @@ Flat-SIMD性能对比如表\ref{table:flat_results}所示。
   \textbf{实现} & \textbf{Recall@10} & \textbf{Latency ($\mu$s)} & \textbf{加速比} \\
   \midrule
   flat\_search (串行) & 0.99995 & 21842.9 & 1.00$\times$ \\
-  simd\_flat\_search (NEON) & 0.99995 & 7073.44 & 3.09$\times$ \\
+  simd\_flat\_search (NEON) & 0.99995 & 6958.38 & 3.14$\times$ \\
   \bottomrule
   \end{tabular}
   \caption{Flat-SIMD性能对比}
@@ -556,13 +556,13 @@ SQ-SIMD不同p值的结果如表\ref{table:sq_results}所示。
   \toprule  
   \textbf{p} & \textbf{Recall@10} & \textbf{Latency ($\mu$s)} & \textbf{相对Baseline加速} \\
   \midrule
-  50 & 0.9739 & 15045.7 & 1.45$\times$ \\
-  100 & 0.9968 & 15256.6 & 1.43$\times$ \\
-  200 & 0.9995 & 15136.8 & 1.44$\times$ \\
-  500 & 0.99995 & 15864.6 & 1.38$\times$ \\
-  1000 & 0.99995 & 16346 & 1.34$\times$ \\
-  2000 & 0.99995 & 16935.7 & 1.29$\times$ \\
-  5000 & 0.99995 & 20469.2 & 1.07$\times$ \\
+  50 & 0.9739 & 15344.7 & 1.42$\times$ \\
+  100 & 0.9968 & 15205.6 & 1.44$\times$ \\
+  200 & 0.9995 & 15453.2 & 1.41$\times$ \\
+  500 & 0.99995 & 15794.5 & 1.38$\times$ \\
+  1000 & 0.99995 & 16271.9 & 1.34$\times$ \\
+  2000 & 0.99995 & 17237.2 & 1.27$\times$ \\
+  5000 & 0.99995 & 20518.9 & 1.06$\times$ \\
   \bottomrule
   \end{tabular}
   \caption{SQ-SIMD性能结果}
@@ -590,13 +590,13 @@ SQ-SIMD的Recall-Latency权衡曲线如图\ref{fig:sq_tradeoff}所示。
     mark size=3pt
     ]
     coordinates {
-    (0.9739,15045.7)
-    (0.9968,15256.6)
-    (0.9995,15136.8)
-    (0.99995,15864.6)
-    (0.99995,16346)
-    (0.99995,16935.7)
-    (0.99995,20469.2)
+    (0.9739,15344.7)
+    (0.9968,15205.6)
+    (0.9995,15453.2)
+    (0.99995,15794.5)
+    (0.99995,16271.9)
+    (0.99995,17237.2)
+    (0.99995,20518.9)
     };
 \addlegendentry{SQ-SIMD}
 \end{axis}
@@ -608,7 +608,7 @@ SQ-SIMD的Recall-Latency权衡曲线如图\ref{fig:sq_tradeoff}所示。
 \textbf{分析}：
 \begin{itemize}
   \item \textbf{recall 曲线}：随着 p 增大，recall 逐渐趋近 1.0
-  \item \textbf{最佳平衡点}：p=500 时，在保持 full recall 的同时取得最优延迟 15864.6 $\mu$s
+  \item \textbf{最佳平衡点}：p=500 时，在保持 full recall 的同时取得最优延迟 15794.5 $\mu$s
   \item \textbf{量化效果}：4$\times$ 压缩带来的内存带宽节省被量化误差引入的精排开销部分抵消
 \end{itemize}
 
@@ -622,8 +622,8 @@ PQ-SIMD与SQ-SIMD对比如表\ref{table:pq_results}所示。
   \toprule  
   \textbf{算法} & \textbf{Recall@10} & \textbf{Latency ($\mu$s)} & \textbf{内存} & \textbf{压缩比} \\
   \midrule
-  SQ (p=500) & 0.99995 & 15864.6 & 9.6 MB & 4$\times$ \\
-  PQ (两阶段, p=2000) & 0.982952 & 2988.9 & $\sim$0.5 MB & 96$\times$ \\
+  SQ (p=500) & 0.99995 & 15794.5 & 9.6 MB & 4$\times$ \\
+  PQ (两阶段, p=2000) & 0.99995 & 5026.63 & $\sim$0.5 MB & 96$\times$ \\
   \bottomrule
   \end{tabular}
   \caption{PQ-SIMD性能对比}
@@ -633,8 +633,8 @@ PQ-SIMD与SQ-SIMD对比如表\ref{table:pq_results}所示。
 \textbf{分析}：
 \begin{itemize}
   \item PQ 实现 96$\times$ 数据压缩，内存占用从 38.4MB 降至约 0.5MB
-  \item 查询延迟降至 2988.9 $\mu$s，加速比达到 7.31$\times$
-  \item recall 降至 0.983，这是 PQ 量化误差的固有代价
+  \item 查询延迟降至 5026.63 $\mu$s，加速比达到 4.35$\times$
+  \item 本地测试中 recall 保持在 0.99995，说明当前实现的两阶段重排有效弥补了量化误差
 \end{itemize}
 
 \subsection{综合对比}
@@ -648,9 +648,9 @@ PQ-SIMD与SQ-SIMD对比如表\ref{table:pq_results}所示。
   \textbf{算法} & \textbf{Recall@10} & \textbf{Latency ($\mu$s)} & \textbf{内存} & \textbf{压缩比} & \textbf{加速比} \\
   \midrule
   flat\_search & 0.99995 & 21842.9 & 38.4 MB & 1$\times$ & 1.00$\times$ \\
-  simd\_flat\_search & 0.99995 & 7073.44 & 38.4 MB & 1$\times$ & 3.09$\times$ \\
-  SQ (p=500) & 0.99995 & 15864.6 & 9.6 MB & 4$\times$ & 1.38$\times$ \\
-  PQ (两阶段) & 0.982952 & 2988.9 & $\sim$0.5 MB & 96$\times$ & 7.31$\times$ \\
+  simd\_flat\_search & 0.99995 & 6958.38 & 38.4 MB & 1$\times$ & 3.14$\times$ \\
+  SQ (p=500) & 0.99995 & 15794.5 & 9.6 MB & 4$\times$ & 1.38$\times$ \\
+  PQ (两阶段) & 0.99995 & 5026.63 & $\sim$0.5 MB & 96$\times$ & 4.35$\times$ \\
   \bottomrule
   \end{tabular}
   \caption{算法综合对比}
@@ -675,7 +675,7 @@ PQ-SIMD与SQ-SIMD对比如表\ref{table:pq_results}所示。
     height=6cm,
     enlarge x limits=0.2,
 ]
-\addplot[fill=blue!50] coordinates {(flat,21842.9) (simd\_flat,7073.44) (SQ,15864.6) (PQ,2988.9)};
+\addplot[fill=blue!50] coordinates {(flat,21842.9) (simd\_flat,6958.38) (SQ,15794.5) (PQ,5026.63)};
 \end{axis}
 \end{tikzpicture}
 \caption{各算法Latency对比}
@@ -906,21 +906,21 @@ PQ-SIMD perf数据：
 \subsection{Flat-SIMD}
 \begin{itemize}
   \item \textbf{技术}：NEON 双累加器加速内积距离
-  \item \textbf{结果}：3.09$\times$ 加速，recall 保持 0.99995
+  \item \textbf{结果}：3.14$\times$ 加速，recall 保持 0.99995
   \item \textbf{瓶颈}：内存带宽限制，实际加速比低于理论值
 \end{itemize}
 
 \subsection{SQ-SIMD}
 \begin{itemize}
   \item \textbf{技术}：均值中心化标量量化 + 两阶段检索
-  \item \textbf{结果}：4$\times$ 压缩，p=500 时延迟 15864.6 $\mu$s，recall 0.99995
+  \item \textbf{结果}：4$\times$ 压缩，p=500 时延迟 15794.5 $\mu$s，recall 0.99995
   \item \textbf{优势}：保持 full recall 的同时降低内存占用
 \end{itemize}
 
 \subsection{PQ-SIMD}
 \begin{itemize}
   \item \textbf{技术}：乘积量化 + ADC + 两阶段检索
-  \item \textbf{结果}：96$\times$ 压缩，recall 0.983，延迟 2988.9 $\mu$s（7.31$\times$ 加速）
+  \item \textbf{结果}：96$\times$ 压缩，recall 0.99995，延迟 5026.63 $\mu$s（4.35$\times$ 加速）
   \item \textbf{优势}：极高压缩比，适合内存受限场景
 \end{itemize}
 
@@ -960,44 +960,44 @@ average latency (us): 21842.9
 \subsection{Flat-SIMD}
 \begin{lstlisting}[frame=single]
 average recall: 0.99995
-average latency (us): 7073.44
+average latency (us): 6958.38
 \end{lstlisting}
 
 \subsection{SQ-SIMD}
 \begin{lstlisting}[frame=single]
 === p=50 ===
 average recall: 0.973903
-average latency (us): 15045.7
+average latency (us): 15344.7
 
 === p=100 ===
 average recall: 0.9968
-average latency (us): 15256.6
+average latency (us): 15205.6
 
 === p=200 ===
 average recall: 0.9995
-average latency (us): 15136.8
+average latency (us): 15453.2
 
 === p=500 ===
 average recall: 0.99995
-average latency (us): 15864.6
+average latency (us): 15794.5
 
 === p=1000 ===
 average recall: 0.99995
-average latency (us): 16346
+average latency (us): 16271.9
 
 === p=2000 ===
 average recall: 0.99995
-average latency (us): 16935.7
+average latency (us): 17237.2
 
 === p=5000 ===
 average recall: 0.99995
-average latency (us): 20469.2
+average latency (us): 20518.9
 \end{lstlisting}
 
 \subsection{PQ-SIMD}
 \begin{lstlisting}[frame=single]
-average recall: 0.982952
-average latency (us): 2988.9
+average recall: 0.99995
+average latency (us): 5026.63
 \end{lstlisting}
 
 \subsection{编译器对比}

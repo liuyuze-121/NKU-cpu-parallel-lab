@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999995 (MiKTeX 24.1) (preloaded format=xelatex 2026.3.13)  11 MAY 2026 22:48
+This is XeTeX, Version 3.141592653-2.6-0.999995 (MiKTeX 24.1) (preloaded format=xelatex 2026.3.13)  3 JUN 2026 11:51
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1906,7 +1906,7 @@ _SIMDprograming[][]
 
 AED: lastpage setting LastPage
 [15]
-runsystem(latexminted cleantemp  --timestamp 20260511224840 FAD58DE7366495DB465
+runsystem(latexminted cleantemp  --timestamp 20260603115159 FAD58DE7366495DB465
 0CFEFAC2FCD61)...disabled (restricted).
 
  (main.aux)
@@ -1924,7 +1924,7 @@ Package rerunfilecheck Info: File `main.out' has not changed.
 Here is how much of TeX's memory you used:
  52692 strings out of 409617
  1242634 string characters out of 5773810
- 2118041 words of memory out of 5000000
+ 2118073 words of memory out of 5000000
  73948 multiletter control sequences out of 15000+600000
  572375 words of font info for 113 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
