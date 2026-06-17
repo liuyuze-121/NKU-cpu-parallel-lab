@@ -1,0 +1,3 @@
+﻿"operation","total_ms","count","avg_us","total_mb","avg_mb","max_mb"
+"[CUDA memcpy Device-to-Host]","191.015","6459","29.573","1637.693","0.254","25.600"
+"[CUDA memcpy Host-to-Device]","41.032","6711","6.114","344.452","0.051","38.400"

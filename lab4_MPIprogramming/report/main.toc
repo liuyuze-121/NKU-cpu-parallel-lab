@@ -42,5 +42,4 @@
 \contentsline {subsubsection}{\numberline {6.5.2}线程模式加速比对比}{20}{subsubsection.6.5.2}%
 \contentsline {subsubsection}{\numberline {6.5.3}算法延迟量级对比}{20}{subsubsection.6.5.3}%
 \contentsline {section}{\numberline {7}实验总结}{20}{section.7}%
-\contentsline {section}{\numberline {8}实验收获}{22}{section.8}%
 \contentsline {section}{\numberline {A}全部实验原始数据}{22}{appendix.A}%

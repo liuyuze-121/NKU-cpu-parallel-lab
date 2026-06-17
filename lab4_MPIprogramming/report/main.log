@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999995 (MiKTeX 24.1) (preloaded format=xelatex 2026.3.13)  4 JUN 2026 20:08
+This is XeTeX, Version 3.141592653-2.6-0.999995 (MiKTeX 24.1) (preloaded format=xelatex 2026.3.13)  5 JUN 2026 08:26
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -2075,7 +2075,7 @@ No file main.bbl.
 
 AED: lastpage setting LastPage
 [25]
-runsystem(latexminted cleantemp  --timestamp 20260604200840 FAD58DE7366495DB465
+runsystem(latexminted cleantemp  --timestamp 20260605082605 FAD58DE7366495DB465
 0CFEFAC2FCD61)...disabled (restricted).
 
  (main.aux)
@@ -2088,7 +2088,7 @@ L3 programming layer <2022/07/14>
 LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: D2AC0A037D4F0149BBD01DC86AD939A6;5186.
+(rerunfilecheck)             Checksum: E5A89C613E5C4320072ACCB8D2B7A47A;5110.
  ) 
 Here is how much of TeX's memory you used:
  54509 strings out of 409617

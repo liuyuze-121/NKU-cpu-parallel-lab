@@ -1,0 +1,4 @@
+﻿"kernel","nsys_total_ms","nsys_instances","nsys_avg_us","ncu_duration_ms","memory_throughput_pct","dram_throughput_pct","sm_throughput_pct","achieved_occupancy_pct","registers_per_thread","block_size","grid_size","threads"
+"flat_score_kernel","411.290","32","12852.812","14.37","97.64","71.67","12.03","83.40","24","256","25,000","6,400,000"
+"cluster_score_kernel","329.498","6364","51.775","141.31","92.49","4.64","11.47","76.86","27","256","235","60,160"
+"indexed_score_kernel","54.446","63","864.226","1.19","85.67","22.89","10.67","93.98","27","256","1,805","462,080"
