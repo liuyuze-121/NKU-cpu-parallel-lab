@@ -1,0 +1,10 @@
+data_dir=C:/Users/Administrator/Desktop/ann_final_advanced/data
+query_count=1000
+topk=10
+nlist=64
+M=16
+ksub=64
+sample=12000
+kmeans_iters=5
+openmp_threads=24
+avx2=1
